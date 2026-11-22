@@ -1,0 +1,78 @@
+<header class="page-header">
+  <div>
+    <h1>{{ session.isStaff() ? 'Staff queue' : 'My claims' }}</h1>
+    <p class="muted">{{ session.isStaff() ? 'Review incoming claims and manage your assignments.' : 'Track your claims and respond when more information is needed.' }}</p>
+  </div>
+  @if (!session.isStaff()) {
+    <a class="button primary" routerLink="/claims/new"><ng-icon name="lucidePlus" /> New claim</a>
+  }
+</header>
+
+@if (!session.isStaff() && !filter() && responseNeeded()) {
+  <aside class="notice-strip">
+    <ng-icon name="lucideArrowDownRight" /> One or more claims on this page need a reply.
+  </aside>
+}
+<section class="surface" aria-labelledby="claims-heading">
+  <div class="section-bar">
+    <div>
+      <h2 id="claims-heading">{{ session.isStaff() ? 'Available and assigned' : 'Claim activity' }}</h2>
+    </div>
+    <div class="section-tools">
+      <label class="filter-label">Status
+        <select #statusFilter [value]="filter()" (change)="changeFilter(statusFilter.value)">
+          <option value="">All statuses</option>
+          @for (status of statuses; track status) { <option [value]="status">{{ labels[status] }}</option> }
+        </select>
+      </label>
+      <button class="quiet icon-text" type="button" aria-label="Refresh claims" (click)="claims.reload()" [disabled]="claims.isLoading()">
+        <ng-icon name="lucideRefreshCw" /> <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+  @if (claims.isLoading() && !claims.hasValue()) {
+    <p class="state" role="status">Loading claims…</p>
+  } @else if (claims.error()) {
+    <p class="error-box section-error" role="alert">{{ loadError() }}</p>
+  } @else if (claims.hasValue()) {
+    @if (claims.value().length) {
+      <div class="claim-table" role="table" aria-label="Claims">
+        <div class="claim-row claim-head" role="row">
+          <span role="columnheader">Claim</span><span role="columnheader">Incident date</span>
+          <span role="columnheader">Status</span><span role="columnheader">Updated</span>
+          <span role="columnheader">Details</span>
+        </div>
+        @for (claim of claims.value(); track claim.id) {
+          <div class="claim-row" role="row">
+            <div class="claim-cell" role="cell">
+              <span class="record-icon"><ng-icon name="lucideClipboardList" /></span>
+              <div><strong>{{ claim.type }} claim</strong><span class="reference">{{ reference(claim.id) }}</span></div>
+            </div>
+            <span class="incident-cell" role="cell">{{ claim.incidentDate | date:'d MMM y' }}</span>
+            <span class="status-cell" role="cell"><app-status-pill [status]="claim.status" /></span>
+            <span class="updated-cell" role="cell">{{ claim.updatedAt | date:'d MMM y' }}</span>
+            <span class="view-cell" role="cell">
+              <a class="text-link" [routerLink]="[session.listRoute(), claim.id]" [attr.aria-label]="'Open ' + reference(claim.id)">
+                Open <ng-icon name="lucideArrowRight" />
+              </a>
+            </span>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty">
+        <span class="record-icon"><ng-icon name="lucideClipboardList" /></span>
+        <h3>No claims {{ filter() ? 'match this status' : 'on this page' }}</h3>
+        @if (filter()) { <button type="button" class="quiet" (click)="changeFilter('')">Clear filter</button> }
+        @else if (!session.isStaff() && page() === 1) { <a class="text-link" routerLink="/claims/new">Submit a claim <ng-icon name="lucideArrowRight" /></a> }
+      </div>
+    }
+    @if (page() > 1 || claims.value().length === 50) {
+      <div class="pagination">
+        <button class="quiet" type="button" (click)="changePage(-1)" [disabled]="page() === 1">Previous</button>
+        <span>Page {{ page() }}</span>
+        <button class="quiet" type="button" (click)="changePage(1)" [disabled]="claims.value().length < 50 || page() === 10000">Next</button>
+      </div>
+    }
+  }
+</section>

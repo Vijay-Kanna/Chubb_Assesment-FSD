@@ -1,0 +1,35 @@
+@if (session.current(); as account) {
+  <a class="skip-link" href="#workspace">Skip to content</a>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" [routerLink]="session.listRoute()">
+        <span class="brand-mark"><ng-icon name="lucideShieldCheck" /></span>
+        <span>Claims<span class="brand-sub">Workspace</span></span>
+      </a>
+      <nav class="navigation" aria-label="Workspace">
+        <a [routerLink]="session.listRoute()" routerLinkActive="active" ariaCurrentWhenActive="page">
+          <ng-icon name="lucideFiles" /> {{ session.isStaff() ? 'Staff queue' : 'My claims' }}
+        </a>
+        @if (!session.isStaff()) {
+          <a routerLink="/notifications" routerLinkActive="active" ariaCurrentWhenActive="page"><ng-icon name="lucideBell" /> Notifications</a>
+        }
+      </nav>
+      <div class="workspace-label">{{ session.isStaff() ? 'Claims staff' : 'Claimant portal' }}</div>
+    </aside>
+    <div class="shell-body">
+      <header class="topbar">
+        <span class="topbar-title">Claims Workspace</span>
+        <div class="account">
+          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+          <span class="account-email">{{ account.email }}</span>
+          <button type="button" class="quiet icon-text" (click)="session.signOut()">
+            <ng-icon name="lucideLogOut" /> <span>Sign out</span>
+          </button>
+        </div>
+      </header>
+      <main id="workspace" class="workspace" tabindex="-1"><router-outlet /></main>
+    </div>
+  </div>
+} @else {
+  <router-outlet />
+}

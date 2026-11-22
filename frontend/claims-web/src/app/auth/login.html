@@ -1,0 +1,46 @@
+<main class="login-page">
+  <section class="login-intro" aria-labelledby="intro-title">
+    <div class="brand">
+      <span class="brand-mark"><ng-icon name="lucideShieldCheck" /></span>
+      <span>Claims<span class="brand-sub">Workspace</span></span>
+    </div>
+    <div class="login-intro-copy">
+      <h1 id="intro-title">Insurance<br> claims portal</h1>
+      <p>Submit and track a claim or sign in as staff to review the queue.</p>
+    </div>
+    <div class="intro-lines" aria-hidden="true"></div>
+  </section>
+  <section class="login-panel" aria-labelledby="sign-in-title">
+    <div class="login-form">
+      <h2 id="sign-in-title">Sign in</h2>
+      <p class="muted">Use your claimant or staff account.</p>
+      <form class="form-stack" (submit)="signIn($event)" novalidate>
+        <label class="field">
+          Email address
+          <input type="email" autocomplete="username" [formField]="login.email"
+            [attr.aria-describedby]="login.email().touched() && login.email().invalid() ? 'email-error' : null" />
+        </label>
+        @if (login.email().touched() && login.email().invalid()) {
+          <p class="field-error" id="email-error">{{ login.email().errors()[0].message }}</p>
+        }
+        <label class="field">
+          Password
+          <input type="password" autocomplete="current-password" [formField]="login.password"
+            [attr.aria-describedby]="login.password().touched() && login.password().invalid() ? 'password-error' : null" />
+        </label>
+        @if (login.password().touched() && login.password().invalid()) {
+          <p class="field-error" id="password-error">{{ login.password().errors()[0].message }}</p>
+        }
+        @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+        <button class="primary sign-in" type="submit" [disabled]="login().submitting()">
+          {{ login().submitting() ? 'Signing in…' : 'Sign in' }} <ng-icon name="lucideArrowRight" />
+        </button>
+      </form>
+      <div class="demo-picker">
+        <p class="muted">Fill in a local demo email</p>
+        <button class="quiet" type="button" (click)="selectAccount('claimant@example.test')">Claimant</button>
+        <button class="quiet" type="button" (click)="selectAccount('staff@example.test')">Claims staff</button>
+      </div>
+    </div>
+  </section>
+</main>

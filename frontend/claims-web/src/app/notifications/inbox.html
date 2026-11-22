@@ -1,0 +1,34 @@
+<header class="page-header">
+  <div><h1>Notifications</h1><p class="muted">Questions and decisions on your claims.</p></div>
+  <button type="button" class="quiet icon-text" (click)="notices.reload()" [disabled]="notices.isLoading()">
+    <ng-icon name="lucideRefreshCw" /> Refresh
+  </button>
+</header>
+<section class="surface" aria-label="Notifications">
+  @if (notices.error()) {
+    <p class="error-box section-error" role="alert">Could not load notifications. Check that the Notifications API is running, then refresh.</p>
+  } @else if (notices.hasValue()) {
+    <ul class="notice-list">
+      @for (notice of notices.value(); track notice.eventId) {
+        <li>
+          <span class="record-icon"><ng-icon name="lucideBell" /></span>
+          <div><strong>{{ notice.message }}</strong><p class="muted">{{ reference(notice.claimId) }} · {{ notice.createdAt | date:'d MMM y, HH:mm' }}</p></div>
+          <a class="text-link" [routerLink]="['/claims', notice.claimId]" [attr.aria-label]="'Open ' + reference(notice.claimId)">
+            Open claim <ng-icon name="lucideArrowRight" />
+          </a>
+        </li>
+      } @empty {
+        <li class="empty"><span class="record-icon"><ng-icon name="lucideBell" /></span><h3>No notifications on this page</h3></li>
+      }
+    </ul>
+    @if (page() > 1 || notices.value().length === 50) {
+      <div class="pagination">
+        <button class="quiet" type="button" (click)="changePage(-1)" [disabled]="page() === 1">Previous</button>
+        <span>Page {{ page() }}</span>
+        <button class="quiet" type="button" (click)="changePage(1)" [disabled]="notices.value().length < 50 || page() === 10000">Next</button>
+      </div>
+    }
+  } @else {
+    <p class="state" role="status">Loading notifications…</p>
+  }
+</section>

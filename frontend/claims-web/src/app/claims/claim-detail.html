@@ -1,0 +1,125 @@
+<a class="text-link back" [routerLink]="session.listRoute()"><ng-icon name="lucideArrowLeft" /> {{ session.isStaff() ? 'Staff queue' : 'My claims' }}</a>
+@if (claim.error()) {
+  <p class="error-box" role="alert">{{ loadError() }}</p>
+  <button class="quiet" type="button" (click)="refresh()">Try again</button>
+} @else if (claim.hasValue()) {
+  @let record = claim.value();
+  <header class="page-header detail-header">
+    <div>
+      <p class="reference">{{ reference(record.id) }}</p>
+      <h1>{{ record.type }} claim</h1>
+      <p class="muted">Incident on {{ record.incidentDate | date:'d MMMM y' }}</p>
+    </div>
+    <div class="header-tools">
+      <app-status-pill [status]="record.status" />
+      <button class="quiet icon-text" type="button" (click)="refresh()" [disabled]="claim.isLoading()" aria-label="Refresh claim">
+        <ng-icon name="lucideRefreshCw" /> <span>Refresh</span>
+      </button>
+    </div>
+  </header>
+  <ol class="progress" aria-label="Claim progress">
+    @for (label of stages; track label; let i = $index) {
+      @if (record.status !== 'Rejected' || i !== 3) {
+        <li [class.complete]="i < stage()" [class.current]="i === stage()" [attr.aria-current]="i === stage() ? 'step' : null">
+          <span class="step-marker">@if (i < stage()) { <ng-icon name="lucideCheck" /> } @else { {{ i + 1 }} }</span>
+          <span>{{ record.status === 'Rejected' && i === 2 ? 'Rejected' : label }}</span>
+        </li>
+      }
+    }
+  </ol>
+  @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+  @if (feedback()) { <p class="success-line" role="status">{{ feedback() }}</p> }
+  <div class="detail-grid">
+    <div class="detail-main">
+      <section class="surface padded" aria-labelledby="incident-heading">
+        <h2 id="incident-heading" class="section-title"><ng-icon name="lucideClipboardList" /> Incident details</h2>
+        <p class="user-text">{{ record.description }}</p>
+      </section>
+
+      @if (canReadMessages()) {
+        <section class="surface padded" aria-labelledby="conversation-heading">
+          <h2 id="conversation-heading" class="section-title"><ng-icon name="lucideMessageCircle" /> Conversation</h2>
+          @if (messages.error()) {
+            <p class="muted" role="status">Could not load the conversation.</p>
+          } @else if (messages.isLoading() && !messages.hasValue()) {
+            <p class="muted" role="status">Loading conversation…</p>
+          } @else if (messages.hasValue()) {
+            <ul class="conversation">
+              @for (message of messages.value(); track message.id) {
+                <li [class.mine]="message.senderUserId === session.current()?.userId">
+                  <div class="message-meta">
+                    <strong>{{ message.senderUserId === session.current()?.userId ? 'You' : session.isStaff() ? 'Claimant' : 'Claims staff' }}</strong>
+                    <time [attr.datetime]="message.sentAt">{{ message.sentAt | date:'d MMM, HH:mm' }}</time>
+                  </div>
+                  <p class="user-text">{{ message.body }}</p>
+                </li>
+              } @empty { <li class="no-message muted">There are no messages on this claim.</li> }
+            </ul>
+          }
+          @if (canSend()) {
+            <form class="form-stack message-form" (submit)="send($event)" novalidate>
+              <label class="field">{{ session.isStaff() ? 'Question for the claimant' : 'Your reply' }}
+                <textarea rows="3" [formField]="messageForm.body"
+                  [attr.aria-describedby]="messageForm.body().touched() && messageForm.body().invalid() ? 'message-error' : null"></textarea>
+              </label>
+              @if (messageForm.body().touched() && messageForm.body().invalid()) {
+                <p class="field-error" id="message-error">{{ messageForm.body().errors()[0].message }}</p>
+              }
+              <button class="primary" type="submit" [disabled]="busy() || messageForm().submitting()">
+                <ng-icon name="lucideSend" /> {{ session.isStaff() ? 'Send question' : 'Send reply' }}
+              </button>
+            </form>
+          }
+        </section>
+      }
+    </div>
+
+    <div class="detail-rail">
+      @if (session.isStaff()) {
+        <section class="surface padded review-panel" aria-labelledby="review-heading">
+          <h2 id="review-heading">Review actions</h2>
+          @if (record.status === 'Submitted') {
+            <p class="muted">Assign this claim to yourself to start a review.</p>
+            <button class="primary" type="button" (click)="change('pick-up')" [disabled]="busy()">Pick up claim</button>
+          } @else if (pendingDecision(); as decision) {
+            <p>Confirm that you want to {{ decision === 'settle' ? 'record settlement for' : decision }} this claim.</p>
+            <div class="review-buttons">
+              <button class="primary" [class.danger]="decision === 'reject'" type="button" (click)="change(decision)" [disabled]="busy()">Confirm {{ decision === 'settle' ? 'settlement' : decision === 'approve' ? 'approval' : 'rejection' }}</button>
+              <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
+            </div>
+          } @else if (isAssigned() && record.status === 'UnderReview') {
+            <p class="muted">Ask a question in the conversation or record your decision.</p>
+            <div class="review-buttons">
+              <button class="primary" type="button" (click)="pendingDecision.set('approve')" [disabled]="busy()">{{ decisionLabels.approve }}</button>
+              <button class="quiet reject" type="button" (click)="pendingDecision.set('reject')" [disabled]="busy()">{{ decisionLabels.reject }}</button>
+            </div>
+          } @else if (isAssigned() && record.status === 'Approved') {
+            <p class="muted">Record settlement once the approved claim is resolved.</p>
+            <button class="primary" type="button" (click)="pendingDecision.set('settle')" [disabled]="busy()">{{ decisionLabels.settle }}</button>
+          } @else if (record.status === 'AwaitingInformation') {
+            <p class="muted">Waiting for the claimant to reply.</p>
+          } @else {
+            <p class="muted">Review is complete.</p>
+          }
+        </section>
+      }
+      <section class="surface padded" aria-labelledby="history-heading">
+        <h2 id="history-heading" class="section-title"><ng-icon name="lucideHistory" /> Claim history</h2>
+        @if (history.error()) {
+          <p class="muted" role="status">Could not load claim history.</p>
+        } @else if (history.hasValue()) {
+          <ol class="timeline">
+            @for (entry of history.value(); track entry.id) {
+              <li>
+                <strong>{{ historyLabels[entry.action] || entry.action }}</strong>
+                <time [attr.datetime]="entry.occurredAt">{{ entry.occurredAt | date:'d MMM y, HH:mm' }}</time>
+              </li>
+            }
+          </ol>
+        } @else { <p class="muted" role="status">Loading history…</p> }
+      </section>
+    </div>
+  </div>
+} @else {
+  <p class="state" role="status">Loading claim…</p>
+}

@@ -1,0 +1,33 @@
+<a class="text-link back" routerLink="/claims"><ng-icon name="lucideArrowLeft" /> My claims</a>
+<header class="page-header">
+  <div><h1>New claim</h1><p class="muted">Tell us what happened to start your claim.</p></div>
+</header>
+<section class="surface form-card">
+  <h2>Incident details</h2>
+  <form class="form-stack" (submit)="save($event)" novalidate>
+    <label class="field">Claim type
+      <select [formField]="claim.type"><option value="Motor">Motor</option><option value="Property">Property</option></select>
+    </label>
+    <label class="field">Incident date
+      <input type="date" [max]="today" [formField]="claim.incidentDate"
+        [attr.aria-describedby]="claim.incidentDate().touched() && claim.incidentDate().invalid() ? 'date-error' : null" />
+    </label>
+    @if (claim.incidentDate().touched() && claim.incidentDate().invalid()) {
+      <p class="field-error" id="date-error">{{ claim.incidentDate().errors()[0].message }}</p>
+    }
+    <label class="field">What happened?
+      <textarea rows="5" [formField]="claim.description" placeholder="Describe the incident and damage."
+        [attr.aria-describedby]="claim.description().touched() && claim.description().invalid() ? 'description-error' : null"></textarea>
+    </label>
+    @if (claim.description().touched() && claim.description().invalid()) {
+      <p class="field-error" id="description-error">{{ claim.description().errors()[0].message }}</p>
+    }
+    @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+    <div class="form-actions">
+      <a class="button quiet" routerLink="/claims">Cancel</a>
+      <button class="primary" type="submit" [disabled]="claim().submitting()">
+        {{ claim().submitting() ? 'Submitting…' : 'Submit claim' }} <ng-icon name="lucideArrowRight" />
+      </button>
+    </div>
+  </form>
+</section>

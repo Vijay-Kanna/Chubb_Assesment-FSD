@@ -1,6 +1,6 @@
 # Chubb Claims Fullstack Assessment
 
-The .NET backend includes a Claims API for the claims workflow and a Notifications API for in-app notifications delivered over Kafka. Each service owns a SQLite database. The backend can be demonstrated over HTTP before adding Angular.
+The Angular workspace serves claimants and claims staff. The .NET Claims API owns the claims workflow, and the Notifications API delivers in-app notifications over Kafka. Each service owns a SQLite database. You can also demonstrate the backend directly over HTTP.
 
 ## Run locally
 
@@ -93,6 +93,37 @@ Allow a few seconds for delivery. There is a notification for a staff question, 
 The Claims API stores each event in an outbox with the corresponding claim change. Its publisher retries pending events after broker failures. The Notifications API saves the notification before committing its Kafka offset. The event ID is the notification's primary key, so replay does not create another row. Kafka events carry identifiers, type, and timestamp. Claim descriptions and conversation text stay in the Claims API.
 
 The Compose broker listens on loopback for local development. Both APIs use a shared JWT signing key for this demo. `docker compose stop` stops the broker while retaining its local data.
+
+## Run the Angular workspace
+
+Use Node.js 24.15 or later in the Node 24 series. Start the Claims API using the instructions above. To see notifications, also start the broker and Notifications API with the shared JWT key as described in [Run Kafka notifications](#run-kafka-notifications).
+
+In another PowerShell terminal, run:
+
+```powershell
+Set-Location frontend/claims-web
+npm ci
+$env:NODE_EXTRA_CA_CERTS = Join-Path ([IO.Path]::GetTempPath()) 'chubb-claims-dev.pem'
+dotnet dev-certs https --format PEM --export-path $env:NODE_EXTRA_CA_CERTS
+npm start
+```
+
+The export contains the public certificate. If the APIs use a different trusted localhost certificate from the Windows user store, export the trusted certificate used by both services to the same PEM path before restarting Angular:
+
+```powershell
+$trusted = Get-ChildItem -LiteralPath 'Cert:\CurrentUser\Root' | Where-Object {
+    $_.Subject -eq 'CN=localhost' -and
+    $_.FriendlyName -eq 'ASP.NET Core HTTPS development certificate' -and
+    $_.NotAfter -gt (Get-Date)
+}
+[IO.File]::WriteAllText($env:NODE_EXTRA_CA_CERTS, (($trusted | ForEach-Object {
+    $_.ExportCertificatePem()
+}) -join [Environment]::NewLine))
+```
+
+Open [Claims Workspace](http://127.0.0.1:4200/). Sign in as the demo claimant and submit a claim. In a second tab, sign in as staff, open the claim from the queue, pick it up, and send a question. In the claimant tab, refresh the claim and reply. Refresh the staff review before recording a decision. The claimant's notification inbox refreshes while its first page is open.
+
+The Angular dev server listens on loopback and proxies API requests over HTTPS with certificate validation. The app keeps the bearer token in memory, so a page reload requires signing in again. Angular route guards handle navigation. The APIs enforce roles and record ownership. To build the Angular app, run `npm run build`. A deployed static host would need HTTPS, SPA routing, and the same API path mappings as the development proxy.
 
 ## Verification
 

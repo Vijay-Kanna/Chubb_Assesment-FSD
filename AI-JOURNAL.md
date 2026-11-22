@@ -29,3 +29,11 @@ I asked Codex to add `Notifications.Api` and its Kafka consumer, verify that a s
 Codex implemented the transactional outbox from the reviewed design. The Claims API commits each event with the claim change. Its worker publishes pending events to Kafka. The Notifications API saves each notification before committing the offset. Codex used the event ID as the notification's primary key so a replay cannot create a duplicate. The services share a JWT signing key for the local demo, and the notifications endpoint derives the recipient from the validated token.
 
 Codex ran 12 passing tests with a real local Kafka broker, covering question, approval, rejection, and settlement notifications, recipient isolation, and replay of the original question event. It also checked the NuGet dependencies against the configured advisory source.
+
+## Angular workspace
+
+I asked Codex to build one Angular app for claimants and staff. I prioritized login, claim tracking and replies, and the staff queue and review screen. I asked for a modern, responsive interface, security, verification, and a local Git commit.
+
+Codex used Angular 22 standalone routes, signals, and Signal Forms. It reused the claim detail screen for both roles and showed actions according to role, assignment, and status. The app proxies same-origin API requests over HTTPS and keeps the JWT in memory. A page reload requires signing in again. The APIs enforce access independently of the UI. Codex fixed a local HTTPS certificate mismatch by configuring Node to trust the APIs' public development certificate.
+
+Codex exercised both roles in the browser against the running APIs and Kafka. It verified submission, pickup, a staff question, the claimant reply, approval and settlement, a separate rejection, and the claimant notifications. It checked the desktop review layout, mobile widths of 320 and 390 pixels, and that sign-in left browser storage empty.
