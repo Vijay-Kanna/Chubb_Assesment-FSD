@@ -5,6 +5,8 @@ internal static class LoginEndpoints
     public static void MapLogin(this WebApplication app)
     {
         app.MapPost("/auth/login", Login)
+            .WithTags("Authentication")
+            .WithSummary("Sign in and obtain a JWT")
             .AllowAnonymous()
             .RequireRateLimiting("login")
             .Produces<LoginResponse>()

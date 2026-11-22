@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
+using Chubb.ApiDocumentation;
 using Claims.Api.Application;
 using Claims.Api.Auth;
 using Claims.Api.Domain;
@@ -12,9 +13,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+const string apiTitle = "Claims API";
 
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+builder.Services.AddAssessmentOpenApi(apiTitle);
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddDbContext<ClaimsDbContext>((services, options) =>
@@ -74,8 +76,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-if (app.Environment.IsDevelopment())
-    app.MapOpenApi();
+app.UseAssessmentSwagger(apiTitle);
 app.MapLogin();
 app.MapClaims();
 

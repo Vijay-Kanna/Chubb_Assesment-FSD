@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Chubb.ApiDocumentation;
 using Claims.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,13 @@ namespace Notifications.Api;
 
 public sealed class Program
 {
+    private const string ApiTitle = "Notifications API";
+
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddProblemDetails();
+        builder.Services.AddAssessmentOpenApi(ApiTitle);
         builder.Services.AddDbContext<NotificationsDbContext>((services, options) =>
         {
             var config = services.GetRequiredService<IConfiguration>();
@@ -44,8 +48,13 @@ public sealed class Program
         });
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseAssessmentSwagger(ApiTitle);
 
         app.MapGet("/notifications", ListNotifications)
+            .WithTags("Notifications")
+            .WithSummary("List notifications for the signed-in claimant")
+            .Produces<NotificationView[]>()
+            .ProducesValidationProblem()
             .RequireAuthorization(policy => policy.RequireRole("Claimant"));
 
         _ = app.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
@@ -67,13 +76,9 @@ public sealed class Program
             .OrderByDescending(notification => notification.CreatedAt).ThenBy(notification => notification.EventId)
             .Skip((page - 1) * 50).Take(50).ToListAsync(cancellationToken);
 
-        return Results.Ok(notifications.Select(notification => new
-        {
-            notification.EventId,
-            notification.ClaimId,
-            notification.Type,
-            notification.CreatedAt,
-            Message = notification.Type switch
+        return Results.Ok(notifications.Select(notification => new NotificationView(
+            notification.EventId, notification.ClaimId, notification.Type, notification.CreatedAt,
+            notification.Type switch
             {
                 ClaimNotificationType.QuestionAsked => "More information requested.",
                 ClaimNotificationType.Approved => "Your claim was approved.",
@@ -81,7 +86,7 @@ public sealed class Program
                 ClaimNotificationType.Settled => "Your claim was settled.",
                 _ => "Your claim was updated."
             }
-        }));
+        )));
     }
 
     private static void ConfigureBearer(JwtBearerOptions options, IConfiguration configuration)
@@ -121,4 +126,7 @@ public sealed class Program
             }
         };
     }
+
+    private sealed record NotificationView(Guid EventId, Guid ClaimId, ClaimNotificationType Type,
+        DateTime CreatedAt, string Message);
 }

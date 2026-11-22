@@ -10,6 +10,7 @@ internal static class ClaimsEndpoints
     public static void MapClaims(this WebApplication app)
     {
         var claims = app.MapGroup("/claims")
+            .WithTags("Claims")
             .RequireAuthorization(policy => policy.RequireRole(Role.Claimant, Role.ClaimsStaff));
 
         claims.MapPost("", Submit).RequireAuthorization(Role.Claimant)

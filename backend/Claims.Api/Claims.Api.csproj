@@ -15,10 +15,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="11.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Claims.Contracts\Claims.Contracts.csproj" />
+    <Compile Include="..\ApiDocumentation\SwaggerDocumentation.cs" Link="ApiDocumentation\SwaggerDocumentation.cs" />
   </ItemGroup>
 
 </Project>

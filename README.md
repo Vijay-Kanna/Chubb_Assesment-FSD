@@ -12,7 +12,7 @@ $env:Demo__Password = [guid]::NewGuid().ToString('N')
 dotnet run --project backend/Claims.Api
 ```
 
-Open `https://localhost:7164/openapi/v1.json` for the development API contract. SQLite migrations run at startup. Development accounts use the password set in `Demo__Password`. Keep the first terminal open and copy the variable to the second PowerShell session. Alternatively, start both sessions from a shell with the variable already set.
+Open `https://localhost:7164/swagger/` to explore the Claims API. SQLite migrations run at startup. Development accounts use the password set in `Demo__Password`. Keep the first terminal open and copy the variable to the second PowerShell session. Alternatively, start both sessions from a shell with the variable already set.
 
 | Account | Role |
 | --- | --- |
@@ -130,3 +130,16 @@ The Angular dev server listens on loopback and proxies API requests over HTTPS w
 Run `dotnet test` from the repository root. Integration tests use the HTTP pipeline and temporary SQLite databases. They cover login, validation, role and ownership checks, approval and settlement, rejection, invalid transitions, and competing pickups and questions. The claim version guards concurrent updates. EF Core commits each workflow change, history entry, and any related message together.
 
 With the Compose broker running, set `$env:KAFKA_TEST_BOOTSTRAP_SERVERS = '127.0.0.1:9092'` before running `dotnet test`. This enables the end-to-end Kafka test for questions, approval, rejection, settlement, replay, and claimant isolation. It uses a temporary topic and consumer group.
+
+## Try the APIs in Swagger
+
+Both APIs serve Swagger UI in the Development environment.
+
+| API | Swagger UI | OpenAPI JSON |
+| --- | --- | --- |
+| Claims | [Claims Swagger](https://localhost:7164/swagger/) | [Claims spec](https://localhost:7164/openapi/v1.json) |
+| Notifications | [Notifications Swagger](https://localhost:7165/swagger/) | [Notifications spec](https://localhost:7165/openapi/v1.json) |
+
+1. In Claims Swagger, expand `POST /auth/login` and select **Try it out**. Enter your demo email and the password you set at startup, then execute the request.
+2. Copy the returned `accessToken`. Select **Authorize** in the Swagger page you want to use and paste the token alone. Swagger adds the `Bearer` prefix.
+3. Try `GET /claims` in Claims Swagger or `GET /notifications` in Notifications Swagger. The notifications endpoint requires a claimant token. Authorize each Swagger page separately.

@@ -37,3 +37,9 @@ I asked Codex to build one Angular app for claimants and staff. I prioritized lo
 Codex used Angular 22 standalone routes, signals, and Signal Forms. It reused the claim detail screen for both roles and showed actions according to role, assignment, and status. The app proxies same-origin API requests over HTTPS and keeps the JWT in memory. A page reload requires signing in again. The APIs enforce access independently of the UI. Codex fixed a local HTTPS certificate mismatch by configuring Node to trust the APIs' public development certificate.
 
 Codex exercised both roles in the browser against the running APIs and Kafka. It verified submission, pickup, a staff question, the claimant reply, approval and settlement, a separate rejection, and the claimant notifications. It checked the desktop review layout, mobile widths of 320 and 390 pixels, and that sign-in left browser storage empty.
+
+## Swagger and the running demo
+
+I asked Codex to run the .NET services, Angular, and Kafka, and to add Swagger. Codex kept ASP.NET Core's OpenAPI generation and added Swagger UI to each service for Development. The generated contracts mark protected operations with JWT bearer authentication. The login endpoint stays public and documented with its request and response.
+
+Codex verified both Swagger pages in the browser, confirmed that protected operations reject anonymous requests, and used a claimant token to reach both APIs through Angular's proxy. All 12 backend tests passed with Kafka running. Codex documented Swagger sign-in and left the local stack running.
