@@ -9,7 +9,7 @@ import { ClaimsClient, errorMessage } from '../core/api';
 import { Session } from '../core/session';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 import { StatusPill } from './status-pill';
-import { Pagination, pageParameters, trackPageTotal } from '../core/pagination';
+import { Pagination, defaultPageSize, pageParameters, trackPageTotal } from '../core/pagination';
 
 @Component({
   imports: [DatePipe, RouterLink, NgIcon, StatusPill, Pagination],
@@ -35,12 +35,13 @@ export class ClaimList {
     if (status === 'all' || this.conversationList()) return '';
     return claimStatuses.find(option => option === status) ?? 'Submitted';
   });
+  protected readonly pageSize = signal<number>(defaultPageSize);
   protected readonly page = linkedSignal({ source: this.filter, computation: () => 1 });
   protected readonly statuses = claimStatuses;
   protected readonly labels = statusLabels;
   protected readonly reference = claimReference;
   protected readonly claims = httpResource<Claim[]>(() => {
-    const params = pageParameters(this.page());
+    const params = pageParameters(this.page(), this.pageSize());
     if (this.filter()) params.set('status', this.filter());
     const user = this.session.current();
     if (this.conversationList() && user?.role === 'ClaimsStaff') {
@@ -48,7 +49,7 @@ export class ClaimList {
     }
     return claimsApi + '/claims?' + params.toString();
   });
-  protected readonly total = trackPageTotal(this.claims, this.page);
+  protected readonly total = trackPageTotal(this.claims, this.page, this.pageSize);
   protected readonly loadError = computed(() => errorMessage(this.claims.error(), 'Could not load the claims.'));
   protected readonly responseNeeded = computed(() =>
     this.claims.hasValue() && this.claims.value().some(claim => claim.status === 'AwaitingInformation'),

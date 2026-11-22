@@ -167,8 +167,8 @@
             }
           </ol>
         } @else { <p class="muted" role="status">Loading history…</p> }
-        <app-pagination label="Claim history pages" [total]="totalHistory()" [page]="historyPage()"
-          [loading]="history.isLoading()" (pageChange)="historyPage.set($event)" />
+        <app-pagination label="Claim history pages" [total]="totalHistory()" [page]="historyPage()" [size]="pageSize()"
+          [loading]="history.isLoading()" (sizeChange)="pageSize.set($event); historyPage.set(1)" (pageChange)="historyPage.set($event)" />
       </section>
     </div>
   </div>

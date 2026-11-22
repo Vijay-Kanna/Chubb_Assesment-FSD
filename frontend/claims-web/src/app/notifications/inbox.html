@@ -27,6 +27,6 @@
   } @else {
     <p class="state" role="status">Loading notifications…</p>
   }
-  <app-pagination label="Notification pages" [total]="total()" [page]="page()"
-    [loading]="notices.isLoading()" (pageChange)="page.set($event)" />
+  <app-pagination label="Notification pages" [total]="total()" [page]="page()" [size]="pageSize()"
+    [loading]="notices.isLoading()" (sizeChange)="pageSize.set($event); page.set(1)" (pageChange)="page.set($event)" />
 </section>

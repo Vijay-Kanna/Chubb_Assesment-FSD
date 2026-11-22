@@ -117,7 +117,10 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         Assert.Equal("Submitted", firstItem.GetProperty("status").GetString());
         Assert.Equal("Submitted", secondItem.GetProperty("status").GetString());
         Assert.NotEqual(firstItem.GetProperty("id").GetGuid(), secondItem.GetProperty("id").GetGuid());
-        await ExpectStatus(HttpMethod.Get, "/claims?pageSize=101", claimant, HttpStatusCode.BadRequest);
+        await ExpectStatus(HttpMethod.Get, "/claims?pageSize=501", claimant, HttpStatusCode.BadRequest);
+        using var largePage = await Request(HttpMethod.Get, "/claims?status=Submitted&pageSize=500", claimant);
+        Assert.Equal(HttpStatusCode.OK, largePage.StatusCode);
+        Assert.Equal(int.Parse(total), (await Read(largePage)).GetArrayLength());
         using var list = await Request(HttpMethod.Get, "/claims", other);
         Assert.DoesNotContain((await Read(list)).EnumerateArray(), claim => claim.GetProperty("id").GetGuid() == id);
         using var pickUp = await Request(HttpMethod.Post, $"/claims/{id}/pick-up", claimant);
@@ -220,6 +223,12 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         Assert.Equal("8", Assert.Single(newestHistory.Headers.GetValues("X-Total-Count")));
         Assert.Equal(["Settled", "Approved"],
             (await Read(newestHistory)).EnumerateArray().Select(entry => entry.GetProperty("action").GetString()));
+        using var largeHistory = await Request(HttpMethod.Get, $"{path}/history?page=1&pageSize=250", staff);
+        Assert.Equal(HttpStatusCode.OK, largeHistory.StatusCode);
+        Assert.Equal(8, (await Read(largeHistory)).GetArrayLength());
+        using var largeMessages = await Request(HttpMethod.Get, $"{path}/messages?page=1&pageSize=500", staff);
+        Assert.Equal(HttpStatusCode.OK, largeMessages.StatusCode);
+        Assert.Equal(4, (await Read(largeMessages)).GetArrayLength());
         using var emptyHistory = await Request(HttpMethod.Get, $"{path}/history?page=5&pageSize=2", staff);
         Assert.Equal(HttpStatusCode.OK, emptyHistory.StatusCode);
         Assert.Empty((await Read(emptyHistory)).EnumerateArray());

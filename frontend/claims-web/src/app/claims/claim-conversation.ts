@@ -10,7 +10,7 @@ import { ClaimsClient, errorMessage } from '../core/api';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 import { Session } from '../core/session';
 import { StatusPill } from './status-pill';
-import { Pagination, pageParameters, trackPageTotal } from '../core/pagination';
+import { Pagination, defaultPageSize, pageParameters, trackPageTotal } from '../core/pagination';
 
 @Component({
   imports: [DatePipe, FormField, NgIcon, RouterLink, StatusPill, Pagination],
@@ -40,6 +40,7 @@ export class ClaimConversation {
   protected readonly participant = computed(() => this.claim.hasValue() &&
     (!this.session.isStaff() || this.claim.value().assignedStaffId === this.session.current()?.userId),
   );
+  protected readonly pageSize = signal<number>(defaultPageSize);
   protected readonly messagePage = linkedSignal({ source: this.id, computation: () => 1 });
   private readonly lastMessageId = linkedSignal({ source: this.id, computation: (): number | undefined => undefined });
   protected readonly messages = httpResource<ClaimMessage[]>(() => {
@@ -47,11 +48,11 @@ export class ClaimConversation {
     if (!id || !this.participant()) return undefined;
 
     const page = this.messagePage();
-    const query = pageParameters(page);
+    const query = pageParameters(page, this.pageSize());
     if (page > 1 && this.lastMessageId() !== undefined) query.set('throughMessageId', String(this.lastMessageId()));
     return claimUrl(id) + '/messages?' + query;
   });
-  protected readonly totalMessages = trackPageTotal(this.messages, this.messagePage);
+  protected readonly totalMessages = trackPageTotal(this.messages, this.messagePage, this.pageSize);
   protected readonly canSend = computed(() => this.claim.hasValue() && this.participant() &&
     this.claim.value().status === (this.session.isStaff() ? 'UnderReview' : 'AwaitingInformation'),
   );

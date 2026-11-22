@@ -6,7 +6,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowRight, lucideDownload } from '@ng-icons/lucide';
 import { ClaimStatus, claimsApi, statusLabels, todayUtc } from '../core/claims';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
-import { Pagination, pageSize } from '../core/pagination';
+import { Pagination, defaultPageSize } from '../core/pagination';
 
 export interface ReportTotal {
   currency: string;
@@ -58,9 +58,11 @@ export class Reports {
   protected readonly overview = httpResource<ReportsOverview>(() =>
     claimsApi + '/reports/overview' + (this.dashboard() ? '' : '?' + new URLSearchParams(this.range())),
   );
+  protected readonly pageSize = signal<number>(defaultPageSize);
   protected readonly staffPage = linkedSignal({ source: () => [this.dashboard(), this.range()], computation: () => 1 });
   protected readonly staffRows = computed(() => {
     if (!this.overview.hasValue()) return [];
+    const pageSize = this.pageSize();
     const start = (this.staffPage() - 1) * pageSize;
     return this.overview.value().staff.slice(start, start + pageSize);
   });

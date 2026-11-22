@@ -19,8 +19,8 @@
       </div>
       <div class="padded">
         <app-pagination label="Message pages" previousLabel="Newer" nextLabel="Older"
-          [total]="totalMessages()" [page]="messagePage()" [loading]="messages.isLoading()"
-          (pageChange)="openMessagePage($event)" />
+          [total]="totalMessages()" [page]="messagePage()" [size]="pageSize()" [loading]="messages.isLoading()"
+          (sizeChange)="pageSize.set($event); messagePage.set(1)" (pageChange)="openMessagePage($event)" />
         @if (messages.error()) {
           <p class="error-box" role="alert">Could not load the conversation.</p>
           <button class="quiet" type="button" (click)="messages.reload()">Try again</button>

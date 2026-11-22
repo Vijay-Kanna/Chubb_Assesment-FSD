@@ -102,8 +102,8 @@
             } @empty { <tr><td colspan="4">No staff accounts are available.</td></tr> }
           </tbody>
         </table>
-        <app-pagination label="Staff activity pages" [total]="report.staff.length" [page]="staffPage()"
-          [loading]="overview.isLoading()" (pageChange)="staffPage.set($event)" />
+        <app-pagination label="Staff activity pages" [total]="report.staff.length" [page]="staffPage()" [size]="pageSize()"
+          [loading]="overview.isLoading()" (sizeChange)="pageSize.set($event); staffPage.set(1)" (pageChange)="staffPage.set($event)" />
       </section>
     }
   </div>

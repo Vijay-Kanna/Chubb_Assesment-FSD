@@ -140,7 +140,7 @@ public sealed class NotificationDeliveryTests
             var olderNotices = (await older.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray()
                 .Select(notice => notice.GetProperty("type").GetString()!).ToArray();
             Assert.Equal(["Approved", "QuestionAsked"], olderNotices);
-            using var isolated = await Send(notifications, HttpMethod.Get, "/notifications?page=1&pageSize=2", other);
+            using var isolated = await Send(notifications, HttpMethod.Get, "/notifications?page=1&pageSize=500", other);
             isolated.EnsureSuccessStatusCode();
             Assert.Equal("0", Assert.Single(isolated.Headers.GetValues("X-Total-Count")));
         }

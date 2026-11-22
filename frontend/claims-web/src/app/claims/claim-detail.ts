@@ -15,7 +15,7 @@ import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 import { StatusPill } from './status-pill';
 import { ClaimExposure } from './claim-exposure';
 import { SearchSelect } from '../core/search-select';
-import { Pagination, pageParameters, trackPageTotal } from '../core/pagination';
+import { Pagination, defaultPageSize, pageParameters, trackPageTotal } from '../core/pagination';
 
 const decisionLabels = {
   approve: 'Approve claim',
@@ -68,12 +68,13 @@ export class ClaimDetail {
   protected readonly isAssigned = computed(() =>
     this.claim.hasValue() && this.claim.value().assignedStaffId === this.session.current()?.userId,
   );
+  protected readonly pageSize = signal<number>(defaultPageSize);
   protected readonly historyPage = linkedSignal({ source: this.id, computation: () => 1 });
   protected readonly history = httpResource<HistoryEntry[]>(() => {
     const id = this.id();
-    return id && this.claim.hasValue() ? claimUrl(id) + '/history?' + pageParameters(this.historyPage()) : undefined;
+    return id && this.claim.hasValue() ? claimUrl(id) + '/history?' + pageParameters(this.historyPage(), this.pageSize()) : undefined;
   });
-  protected readonly totalHistory = trackPageTotal(this.history, this.historyPage);
+  protected readonly totalHistory = trackPageTotal(this.history, this.historyPage, this.pageSize);
   protected readonly noLongerAvailable = computed(() => {
     const error = this.claim.error();
     return this.session.isStaff() && error instanceof HttpErrorResponse && error.status === 404;

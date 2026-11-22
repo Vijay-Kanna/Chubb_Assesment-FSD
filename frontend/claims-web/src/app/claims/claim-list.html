@@ -99,5 +99,5 @@
     }
   }
   <app-pagination [label]="conversationList() ? 'Conversation list pages' : 'Claim list pages'"
-    [total]="total()" [page]="page()" [loading]="claims.isLoading()" (pageChange)="page.set($event)" />
+    [total]="total()" [page]="page()" [size]="pageSize()" [loading]="claims.isLoading()" (sizeChange)="pageSize.set($event); page.set(1)" (pageChange)="page.set($event)" />
 </section>
