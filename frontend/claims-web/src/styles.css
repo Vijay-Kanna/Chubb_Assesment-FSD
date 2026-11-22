@@ -80,6 +80,18 @@ button:disabled { opacity: .56; cursor: default; }
 .section-tools, .header-tools { display: flex; align-items: center; gap: .6rem; }
 .filter-label { display: flex; align-items: center; gap: .55rem; color: var(--muted); font-size: .78rem; font-weight: 800; }
 .filter-label select { min-width: 9rem; }
+.claims-surface .section-bar { background: #f8f9fd; border-radius: var(--radius) var(--radius) 0 0; }
+.claim-tabs { display: flex; flex-wrap: wrap; gap: .4rem; padding: .35rem .85rem .8rem; background: #f8f9fd; }
+.claim-tabs button { min-height: 44px; padding: .4rem .65rem; background: var(--surface); color: var(--ink); border-color: var(--line); font-size: .8rem; }
+.claim-tabs button:hover, .claim-tabs button[aria-pressed="true"] { background: var(--tint); color: var(--action); border-color: var(--action); }
+.amount-fields, .claim-amounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: end; }
+.claim-amounts { margin: .8rem 0 0; }
+.claim-amounts dt { color: var(--muted); font-size: .8rem; }
+.claim-amounts dd { margin: .15rem 0 0; font-weight: 800; overflow-wrap: anywhere; }
+@media (max-width: 450px) {
+  .claim-tabs { padding-inline: .55rem; }
+  .claim-tabs button { padding-inline: .5rem; font-size: .75rem; }
+}
 .notice-strip { display: flex; gap: .65rem; align-items: center; border: 1px solid #d8dffd; background: #eef1ff; color: #283982; border-radius: 8px; padding: .72rem 1rem; margin-bottom: 1.15rem; font-weight: 700; }
 
 .claim-table-scroll { overflow-x: auto; }
@@ -207,7 +219,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   .login-panel { align-items: start; }
 }
 @media (max-width: 450px) {
-  .sidebar .navigation { flex-basis: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; }
+  .sidebar .navigation { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr)); gap: .25rem; }
   .navigation a { flex-direction: column; justify-content: center; padding-inline: .2rem; font-size: .7rem; }
   .page-header { align-items: flex-start; flex-wrap: wrap; }
   .page-header > .button { min-height: 40px; }

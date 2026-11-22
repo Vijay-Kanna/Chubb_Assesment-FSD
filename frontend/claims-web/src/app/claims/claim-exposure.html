@@ -17,11 +17,7 @@
         @if (estimateForm.amount().touched() && estimateForm.amount().invalid()) {
           <p class="field-error" id="amount-error">{{ estimateForm.amount().errors()[0].message }}</p>
         }
-        <label class="field">Currency
-          <select [formField]="estimateForm.currency">
-            @for (currency of currencies; track currency) { <option [value]="currency">{{ currency }}</option> }
-          </select>
-        </label>
+        <app-search-select controlId="exposure-currency" label="Currency" [options]="currencies" [formField]="estimateForm.currency" />
         @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
         <div class="review-buttons">
           <button class="primary" type="submit" [disabled]="estimateForm().submitting()">Save estimate</button>

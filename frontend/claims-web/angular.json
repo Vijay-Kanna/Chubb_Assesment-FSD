@@ -77,7 +77,10 @@
           "builder": "@angular/build:dev-server",
           "options": {
             "host": "127.0.0.1",
-            "proxyConfig": "proxy.conf.cjs"
+            "proxyConfig": "proxy.conf.cjs",
+            "prebundle": {
+              "exclude": ["jspdf", "jspdf-autotable"]
+            }
           },
           "configurations": {
             "production": {

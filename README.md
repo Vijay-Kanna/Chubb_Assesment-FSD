@@ -134,9 +134,13 @@ The Angular dev server listens on loopback and proxies API requests over HTTPS w
 
 ## Sample claims and staff reports
 
-With the Claims API running and `Demo__Password` set to the demo password, run `.\scripts\seed-demo-claims.ps1` from the repository root. The script creates eight fictional motor and property claims across both claimant accounts. It uses the regular API workflow. On a rerun, it skips matching examples and fills in the known fictional reason if the sample rejected claim was created before reasons were supported.
+With the Claims API running and `Demo__Password` set to the demo password, run `.\scripts\seed-demo-claims.ps1` from the repository root. The script creates ten fictional motor and property claims across both claimant accounts. It uses the regular API workflow. On a rerun, it skips matching examples and fills in the known fictional reason if the sample rejected claim was created before reasons were supported.
 
-Sign in as `staff@example.test` and select **Reports**. The report shows the current status breakdown and workload, plus staff decisions and settlements over the selected 7-, 30-, or 90-day window. The Claims API serves the report at `GET /reports/overview`.
+Both claim lists open on **Submitted**. Use the status tabs to see other statuses or **All claims**. Conversations has its own menu and shows threads across statuses.
+
+Sign in as `staff@example.test` and open **Dashboard** for all-time status counts, requested amounts, approved amounts, and open exposure. Amounts use their recorded currencies. Staff records an approved amount when confirming approval. Claimants can enter an optional requested amount when filing. Older submissions or approvals without an amount remain visible in status counts.
+
+Open **Reports** and choose 7, 30, or 90 days or apply a custom start and end date. Both UTC dates are inclusive. Counts, amounts, and current assignments reflect claims submitted in that range. The activity table counts decisions and settlements on those claims during the selected period. **Export PDF** downloads the filtered report. The Claims API accepts `GET /reports/overview?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`. The existing `?days=30` query retains its all-claims overview and rolling staff activity window.
 
 Assigned staff can add or edit a claim's **Exposure estimate** on its review screen. The report totals recorded estimates for open claims by currency and shows how many open claims lack an estimate. Settled and rejected claims are excluded. Claimants can see their claim progress and conversation.
 

@@ -1,5 +1,21 @@
 :host { display: block; }
-.report-header .header-tools { flex-wrap: wrap; }
+.dashboard-header {
+  padding: clamp(1rem, 3vw, 2rem);
+  color: #fff;
+  border-radius: var(--radius);
+  background: linear-gradient(118deg, var(--nav), #3f4b89);
+}
+.dashboard-header .muted { color: #e1e6ff; }
+.report-filters { margin-bottom: 1rem; }
+.period-options { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .65rem; }
+.period-options [aria-pressed="true"] { color: var(--action); border-color: var(--action); background: var(--tint); }
+.date-range { display: grid; grid-template-columns: repeat(2, minmax(0, 12rem)) auto; align-items: end; justify-content: start; gap: .75rem; margin-top: .8rem; }
+.report-range { color: var(--ink); font-weight: 750; margin-bottom: .65rem; font-size: .83rem; }
+.money-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.money-card { border-top: 3px solid #6977c8; }
+.money-card:nth-child(2) { border-top-color: #398268; }
+.money-card:nth-child(3) { border-top-color: #a16e29; }
+.exposure-totals dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .report-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; margin: 0 0 1rem; }
 .report-totals > div { display: flex; flex-direction: column-reverse; gap: .15rem; padding: .95rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .report-totals > div:first-child { background: var(--nav); border-color: var(--nav); color: white; }
@@ -26,6 +42,12 @@
 .report-table thead th { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
 .report-table th:not(:first-child), .report-table td:not(:first-child) { text-align: right; }
 .report-updated { margin-top: .65rem; font-size: .76rem; }
+:host:has(.dashboard-header) .report-panels { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 970px) { .report-panels { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 600px) { .report-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) {
+  .report-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .money-grid { grid-template-columns: minmax(0, 1fr); }
+  .date-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .date-range button { justify-self: start; grid-column: 1 / -1; }
+}
 @media (max-width: 380px) { .report-table th, .report-table td { padding-inline: .2rem; } }

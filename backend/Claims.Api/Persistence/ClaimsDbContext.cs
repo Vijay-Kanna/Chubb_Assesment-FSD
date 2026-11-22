@@ -32,10 +32,13 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
             claim.Property(x => x.Type).HasConversion<string>();
             claim.Property(x => x.Status).HasConversion<string>();
             claim.Property(x => x.EstimatedExposureCurrency).HasConversion<string>();
+            claim.Property(x => x.RequestedCurrency).HasConversion<string>();
+            claim.Property(x => x.ApprovedCurrency).HasConversion<string>();
             claim.Property(x => x.RejectionReason).HasMaxLength(Claim.MaxRejectionReasonLength);
             claim.HasOne<User>().WithMany().HasForeignKey(x => x.ClaimantId).OnDelete(DeleteBehavior.Restrict);
             claim.HasOne<User>().WithMany().HasForeignKey(x => x.AssignedStaffId).OnDelete(DeleteBehavior.Restrict);
             claim.HasIndex(x => new { x.AssignedStaffId, x.Status });
+            claim.HasIndex(x => x.CreatedAt);
         });
         model.Entity<ClaimMessage>(message =>
         {

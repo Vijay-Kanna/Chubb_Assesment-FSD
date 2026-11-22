@@ -15,6 +15,7 @@ export const routes: Routes = [
   { path: 'staff/:id', title: 'Claim review | Claims Workspace', canActivate: [staff], loadComponent: detail },
   { path: 'conversations', title: 'Conversations | Claims Workspace', canActivate: [signedInGuard], data: { conversationList: true }, loadComponent: list },
   { path: 'conversations/:id', title: 'Conversation | Claims Workspace', canActivate: [signedInGuard], loadComponent: () => import('./claims/claim-conversation').then(module => module.ClaimConversation) },
+  { path: 'dashboard', title: 'Claims dashboard | Claims Workspace', canActivate: [staff], data: { dashboard: true }, loadComponent: () => import('./reports/reports').then(module => module.Reports) },
   { path: 'reports', title: 'Claims reports | Claims Workspace', canActivate: [staff], loadComponent: () => import('./reports/reports').then(module => module.Reports) },
   { path: 'notifications', title: 'Notifications | Claims Workspace', canActivate: [claimant], loadComponent: () => import('./notifications/inbox').then(module => module.Inbox) },
   { path: '', pathMatch: 'full', redirectTo: 'login' },

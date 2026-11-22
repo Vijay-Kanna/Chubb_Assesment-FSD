@@ -5,9 +5,7 @@
 <section class="surface form-card">
   <h2>Incident details</h2>
   <form class="form-stack" (submit)="save($event)" novalidate>
-    <label class="field">Claim type
-      <select [formField]="claim.type"><option value="Motor">Motor</option><option value="Property">Property</option></select>
-    </label>
+    <app-search-select controlId="claim-type" label="Claim type" [options]="types" [formField]="claim.type" />
     <label class="field">Incident date
       <input type="date" [max]="today" [formField]="claim.incidentDate"
         [attr.aria-describedby]="claim.incidentDate().touched() && claim.incidentDate().invalid() ? 'date-error' : null" />
@@ -22,6 +20,12 @@
     @if (claim.description().touched() && claim.description().invalid()) {
       <p class="field-error" id="description-error">{{ claim.description().errors()[0].message }}</p>
     }
+    <div class="amount-fields">
+      <label class="field">Requested amount (optional)
+        <input type="text" inputmode="decimal" [value]="amount()" (input)="amount.set($event.target.value)" />
+      </label>
+      <app-search-select controlId="requested-currency" label="Currency" [options]="currencies" [(value)]="currency" />
+    </div>
     @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
     <div class="form-actions">
       <a class="button quiet" routerLink="/claims">Cancel</a>

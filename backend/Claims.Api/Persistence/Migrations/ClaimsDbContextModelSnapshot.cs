@@ -23,6 +23,12 @@ namespace Claims.Api.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("ApprovedAmountMinor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ApprovedCurrency")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("AssignedStaffId")
                         .HasColumnType("TEXT");
 
@@ -49,6 +55,12 @@ namespace Claims.Api.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("RequestedAmountMinor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RequestedCurrency")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -67,6 +79,8 @@ namespace Claims.Api.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClaimantId");
+
+                    b.HasIndex("CreatedAt");
 
                     b.HasIndex("AssignedStaffId", "Status");
 

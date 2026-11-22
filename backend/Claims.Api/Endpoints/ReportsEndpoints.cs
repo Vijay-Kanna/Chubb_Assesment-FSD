@@ -15,11 +15,18 @@ internal static class ReportsEndpoints
             .ProducesValidationProblem();
     }
 
-    private static async Task<IResult> Overview(ReportsService service, CancellationToken cancellationToken, int days = 30)
+    private static async Task<IResult> Overview(ReportsService service, CancellationToken cancellationToken,
+        int days = 30, DateOnly? startDate = null, DateOnly? endDate = null)
     {
         if (days is not (7 or 30 or 90))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["days"] = ["Select 7, 30, or 90 days."] });
 
-        return Results.Ok(await service.OverviewAsync(days, cancellationToken));
+        if ((startDate is null) != (endDate is null) || startDate > endDate)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["dateRange"] = ["Provide a start date and an end date on or after the start date."]
+            });
+
+        return Results.Ok(await service.OverviewAsync(days, startDate, endDate, cancellationToken));
     }
 }

@@ -66,6 +66,23 @@
         <p class="user-text">{{ record.description }}</p>
       </section>
 
+      <section class="surface padded" aria-labelledby="amounts-heading">
+        <h2 id="amounts-heading">Claim amounts</h2>
+        <dl class="claim-amounts">
+          <div><dt>Requested</dt><dd>
+            @if (record.requestedAmountMinor != null && record.requestedCurrency) {
+              {{ record.requestedAmountMinor / 100 | currency:record.requestedCurrency:'code' }}
+            } @else { Amount unavailable }
+          </dd></div>
+          @if (record.status === 'Approved' || record.status === 'Settled') {
+            <div><dt>Approved</dt><dd>
+              @if (record.approvedAmountMinor != null && record.approvedCurrency) {
+                {{ record.approvedAmountMinor / 100 | currency:record.approvedCurrency:'code' }}
+              } @else { Amount unavailable }
+            </dd></div>
+          }
+        </dl>
+      </section>
     </div>
 
     <div class="detail-rail">
@@ -93,17 +110,31 @@
                   <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
                 </div>
               </form>
+            } @else if (decision === 'approve') {
+              <form class="form-stack" (submit)="recordApproval($event)" novalidate>
+                <label class="field">Approved amount
+                  <input type="text" inputmode="decimal" [value]="approvalAmount()"
+                    (input)="approvalAmount.set($event.target.value)" />
+                </label>
+                <app-search-select controlId="approved-currency" label="Currency" [options]="currencies" [(value)]="approvalCurrency" />
+                <p class="muted form-helper">The claimant will see this amount. Record settlement separately once resolved.</p>
+                @if (approvalError()) { <p class="field-error" role="alert">{{ approvalError() }}</p> }
+                <div class="review-buttons">
+                  <button class="primary" type="submit" [disabled]="busy()">Confirm approval</button>
+                  <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
+                </div>
+              </form>
             } @else {
-              <p>Confirm that you want to {{ decision === 'settle' ? 'record settlement for' : 'approve' }} this claim.</p>
+              <p>Confirm that you want to record settlement for this claim.</p>
               <div class="review-buttons">
-                <button class="primary" type="button" (click)="change(decision)" [disabled]="busy()">Confirm {{ decision === 'settle' ? 'settlement' : 'approval' }}</button>
+                <button class="primary" type="button" (click)="change(decision)" [disabled]="busy()">Confirm settlement</button>
                 <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
               </div>
             }
           } @else if (isAssigned() && record.status === 'UnderReview') {
             <p class="muted">Ask a question in the conversation or record your decision.</p>
             <div class="review-buttons">
-              <button class="primary" type="button" (click)="pendingDecision.set('approve')" [disabled]="busy()">{{ decisionLabels.approve }}</button>
+              <button class="primary" type="button" (click)="startApproval(record)" [disabled]="busy()">{{ decisionLabels.approve }}</button>
               <button class="quiet reject" type="button" (click)="pendingDecision.set('reject')" [disabled]="busy()">{{ decisionLabels.reject }}</button>
             </div>
           } @else if (isAssigned() && record.status === 'Approved') {

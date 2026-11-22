@@ -4,6 +4,8 @@ public enum ClaimStatus { Submitted, UnderReview, AwaitingInformation, Approved,
 public enum ClaimType { Motor, Property }
 public enum ExposureCurrency { MYR, SGD, AUD, HKD, NZD, USD }
 
+public sealed record ClaimAmount(long AmountMinor, ExposureCurrency Currency);
+
 public sealed class Claim
 {
     public const int MaxRejectionReasonLength = 1000;
@@ -23,8 +25,13 @@ public sealed class Claim
     public long? EstimatedExposureMinor { get; private set; }
     public ExposureCurrency? EstimatedExposureCurrency { get; private set; }
     public string? RejectionReason { get; private set; }
+    public long? RequestedAmountMinor { get; private set; }
+    public ExposureCurrency? RequestedCurrency { get; private set; }
+    public long? ApprovedAmountMinor { get; private set; }
+    public ExposureCurrency? ApprovedCurrency { get; private set; }
 
-    public static Claim Submit(Guid claimantId, ClaimType type, DateOnly incidentDate, string description, DateTime now) =>
+    public static Claim Submit(Guid claimantId, ClaimType type, DateOnly incidentDate, string description, DateTime now,
+        ClaimAmount? requested = null) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -34,7 +41,9 @@ public sealed class Claim
             Description = description,
             Status = ClaimStatus.Submitted,
             CreatedAt = now,
-            UpdatedAt = now
+            UpdatedAt = now,
+            RequestedAmountMinor = requested?.AmountMinor,
+            RequestedCurrency = requested?.Currency
         };
 
     public bool TryPickUp(Guid staffId, DateTime now)
@@ -51,7 +60,15 @@ public sealed class Claim
 
     public bool TryReply(DateTime now) => TryMove(ClaimStatus.AwaitingInformation, ClaimStatus.UnderReview, now);
 
-    public bool TryApprove(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.Approved, now);
+    public bool TryApprove(DateTime now, ClaimAmount? approved = null)
+    {
+        if (!TryMove(ClaimStatus.UnderReview, ClaimStatus.Approved, now))
+            return false;
+
+        ApprovedAmountMinor = approved?.AmountMinor;
+        ApprovedCurrency = approved?.Currency;
+        return true;
+    }
 
     public bool TryReject(string reason, DateTime now)
     {

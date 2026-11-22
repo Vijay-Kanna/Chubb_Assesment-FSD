@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { form, FormField, maxLength, required, submit } from '@angular/forms/signals';
@@ -8,12 +8,13 @@ import {
   lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
   lucideMail, lucideMessageCircle, lucidePhone,
 } from '@ng-icons/lucide';
-import { Claim, HistoryEntry, claimReference, claimUrl, historyLabels } from '../core/claims';
+import { Claim, ClaimAmount, HistoryEntry, amountValidationMessage, claimCurrencies, claimReference, claimUrl, historyLabels, parseClaimAmount } from '../core/claims';
 import { ClaimsClient, errorMessage } from '../core/api';
 import { Session } from '../core/session';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 import { StatusPill } from './status-pill';
 import { ClaimExposure } from './claim-exposure';
+import { SearchSelect } from '../core/search-select';
 
 const decisionLabels = {
   approve: 'Approve claim',
@@ -24,7 +25,7 @@ const decisionLabels = {
 type Decision = keyof typeof decisionLabels;
 
 @Component({
-  imports: [DatePipe, RouterLink, FormField, NgIcon, StatusPill, ClaimExposure],
+  imports: [CurrencyPipe, DatePipe, RouterLink, FormField, NgIcon, StatusPill, ClaimExposure, SearchSelect],
   viewProviders: [provideIcons({
     lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
     lucideMail, lucideMessageCircle, lucidePhone,
@@ -46,6 +47,10 @@ export class ClaimDetail {
     source: this.id,
     computation: (): Decision | null => null,
   });
+  protected readonly currencies = claimCurrencies;
+  protected readonly approvalAmount = linkedSignal({ source: this.id, computation: () => '' });
+  protected readonly approvalCurrency = linkedSignal({ source: this.id, computation: () => 'MYR' });
+  protected readonly approvalError = signal('');
   protected readonly busy = signal(false);
   protected readonly error = linkedSignal({ source: this.id, computation: () => '' });
   protected readonly feedback = linkedSignal({ source: this.id, computation: () => '' });
@@ -96,7 +101,7 @@ export class ClaimDetail {
     this.localRevision.update(value => value + 1);
   }
 
-  protected async change(action: Decision, body?: string) {
+  protected async change(action: Decision, body?: string | ClaimAmount) {
     const id = this.id();
     if (!id || this.busy()) return;
     this.busy.set(true);
@@ -118,6 +123,25 @@ export class ClaimDetail {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  protected startApproval(record: Claim) {
+    this.approvalAmount.set('');
+    this.approvalCurrency.set(record.requestedCurrency ?? 'MYR');
+    this.approvalError.set('');
+    this.pendingDecision.set('approve');
+  }
+
+  protected recordApproval(event: Event) {
+    event.preventDefault();
+    const amount = parseClaimAmount(this.approvalAmount());
+    const currency = this.currencies.find(option => option === this.approvalCurrency());
+    if (amount === null || !currency) {
+      this.approvalError.set(amountValidationMessage);
+      return;
+    }
+    this.approvalError.set('');
+    void this.change('approve', { amount, currency });
   }
 
   protected recordRejection(event: Event, action: 'reject' | 'rejection-reason') {

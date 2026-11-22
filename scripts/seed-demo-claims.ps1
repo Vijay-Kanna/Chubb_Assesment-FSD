@@ -34,6 +34,8 @@ $samples = @(
     @{ Owner = 'claimant'; Type = 'Motor'; Age = 19; Description = 'Demo - Windscreen damage reported after a previous repair.'; Status = 'Rejected'; Staff = 'other-staff'; Amount = 600; Currency = 'MYR'; Reason = 'The assessment found that the windscreen damage occurred before cover began under the sample policy.' }
     @{ Owner = 'other-claimant'; Type = 'Property'; Age = 4; Description = 'Demo - Storm runoff damaged a utility room.'; Status = 'UnderReview'; Staff = 'other-staff'; Amount = 2600; Currency = 'SGD' }
     @{ Owner = 'other-claimant'; Type = 'Motor'; Age = 1; Description = 'Demo - Passenger door dent discovered after street parking.'; Status = 'Submitted' }
+    @{ Owner = 'claimant'; Type = 'Motor'; Age = 1; Description = 'Demo - Headlamp damage after a low-speed collision.'; Status = 'Submitted'; Requested = 1850.50; Currency = 'MYR' }
+    @{ Owner = 'claimant'; Type = 'Property'; Age = 3; Description = 'Demo - Water damage to laminate flooring after a pipe burst.'; Status = 'Approved'; Staff = 'staff'; Requested = 2800; Approved = 2400.75; Amount = 2400.75; Currency = 'SGD' }
 )
 
 $known = @{}
@@ -58,11 +60,16 @@ foreach ($sample in $samples) {
         continue
     }
 
-    $claim = Invoke-ClaimsRequest 'Post' '/claims' $claimant @{
+    $submission = @{
         type = $sample.Type
         incidentDate = [DateTime]::UtcNow.AddDays(-$sample.Age).ToString('yyyy-MM-dd')
         description = $sample.Description
     }
+    if ($null -ne $sample.Requested) {
+        $submission.requestedAmount = $sample.Requested
+        $submission.requestedCurrency = $sample.Currency
+    }
+    $claim = Invoke-ClaimsRequest 'Post' '/claims' $claimant $submission
     if ($sample.Status -ne 'Submitted') {
         $staff = $accounts[$sample.Staff]
         $path = "/claims/$($claim.id)"
@@ -72,7 +79,10 @@ foreach ($sample in $samples) {
         }
         switch ($sample.Status) {
             'AwaitingInformation' { $claim = Invoke-ClaimsRequest 'Post' "$path/questions" $staff @{ body = $sample.Question } }
-            'Approved' { $claim = Invoke-ClaimsRequest 'Post' "$path/approve" $staff $null }
+            'Approved' {
+                $approval = if ($null -ne $sample.Approved) { @{ amount = $sample.Approved; currency = $sample.Currency } }
+                $claim = Invoke-ClaimsRequest 'Post' "$path/approve" $staff $approval
+            }
             'Rejected' { $claim = Invoke-ClaimsRequest 'Post' "$path/reject" $staff @{ reason = $sample.Reason } }
             'Settled' {
                 $null = Invoke-ClaimsRequest 'Post' "$path/approve" $staff $null

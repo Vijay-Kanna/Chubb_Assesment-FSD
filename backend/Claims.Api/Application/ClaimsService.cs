@@ -9,10 +9,10 @@ namespace Claims.Api.Application;
 internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, ClaimUpdates updates)
 {
     public async Task<ClaimView> SubmitAsync(Guid claimantId, ClaimType type, DateOnly incidentDate,
-        string description, CancellationToken cancellationToken)
+        string description, CancellationToken cancellationToken, ClaimAmount? requested = null)
     {
         var now = clock.GetUtcNow().UtcDateTime;
-        var claim = Claim.Submit(claimantId, type, incidentDate, description, now);
+        var claim = Claim.Submit(claimantId, type, incidentDate, description, now, requested);
         db.Claims.Add(claim);
         AddHistory(claim, claimantId, ClaimAction.Submitted, previousStatus: null, now);
         await db.SaveChangesAsync(cancellationToken);
@@ -110,7 +110,7 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, Clai
     }
 
     public async Task<ClaimChange> ReviewAsync(Guid id, Guid actorId, ClaimAction action, string? body,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, ClaimAmount? approved = null)
     {
         var claim = await ParticipantClaims(actorId, isStaff: action != ClaimAction.ReplyReceived)
             .SingleOrDefaultAsync(claim => claim.Id == id, cancellationToken);
@@ -123,7 +123,7 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, Clai
         {
             ClaimAction.QuestionAsked => claim.TryAskQuestion(now),
             ClaimAction.ReplyReceived => claim.TryReply(now),
-            ClaimAction.Approved => claim.TryApprove(now),
+            ClaimAction.Approved => claim.TryApprove(now, approved),
             ClaimAction.Rejected => body is not null && claim.TryReject(body, now),
             ClaimAction.Settled => claim.TrySettle(now),
             ClaimAction.RejectionReasonRecorded => body is not null && claim.TryRecordMissingRejectionReason(body, now),
@@ -215,10 +215,12 @@ internal sealed record ClaimChange(ClaimChangeOutcome Outcome, ClaimView? Claim 
 
 internal sealed record ClaimView(Guid Id, Guid ClaimantId, Guid? AssignedStaffId, ClaimType Type,
     DateOnly IncidentDate, string Description, ClaimStatus Status, DateTime CreatedAt, DateTime UpdatedAt,
-    string? RejectionReason)
+    string? RejectionReason, long? RequestedAmountMinor, ExposureCurrency? RequestedCurrency,
+    long? ApprovedAmountMinor, ExposureCurrency? ApprovedCurrency)
 {
     public static ClaimView From(Claim claim) => new(claim.Id, claim.ClaimantId, claim.AssignedStaffId, claim.Type,
-        claim.IncidentDate, claim.Description, claim.Status, claim.CreatedAt, claim.UpdatedAt, claim.RejectionReason);
+        claim.IncidentDate, claim.Description, claim.Status, claim.CreatedAt, claim.UpdatedAt, claim.RejectionReason,
+        claim.RequestedAmountMinor, claim.RequestedCurrency, claim.ApprovedAmountMinor, claim.ApprovedCurrency);
 }
 
 internal sealed record HistoryView(long Id, Guid ActorUserId, ClaimAction Action, ClaimStatus? PreviousStatus,

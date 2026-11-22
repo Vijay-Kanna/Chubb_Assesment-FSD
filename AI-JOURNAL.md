@@ -73,3 +73,13 @@ I confirmed that the conversation should stay separate from claim history becaus
 I asked Codex to give conversations their own menu and put claim pickup in the staff data table. Codex moved the message thread and form into **Conversations** for both roles. Claim details retain the audit history and link to the thread. A question notification also opens its conversation directly.
 
 Codex converted the queue to a native table and added **Pick up** to each available row. It verified the row action, live queue removal for another staff member, question and reply delivery in the separate thread, and the audit entry on the claim detail page. The table fit a 320-pixel viewport. The Angular build and all 14 backend tests passed.
+
+## Status tabs, dashboard, and PDF reports
+
+I asked Codex to make Submitted the default tab, show only claims in the selected status, add a dashboard with claim counts and requested and approved amounts, and add a custom reporting period and PDF export. I also asked for a responsive redesign and searchable dropdowns.
+
+Codex kept pickup in the staff table and added status tabs for both claims lists. It added an all-time staff dashboard, with requested, approved, and exposure amounts grouped by currency. The API migration adds optional fields for claims filed before amounts were tracked. The claimant can enter a requested amount at submission and staff records an approved amount in the approval form. Settlement remains a separate action.
+
+Codex made both UTC dates inclusive and tested a range that ends at the last instant of a day. It fixed a date label that could shift by a day across time zones and adjusted Angular's development bundling after the first export triggered a page reload. It added two fictional examples for the dashboard and verified that the existing SQLite database migrated successfully.
+
+Codex verified the tabs, dashboard links, searchable claim type and currency controls, and a 320-pixel layout in the browser. It filed and approved a fictional claim with different requested and approved amounts, checked the dashboard totals, and tested reversed dates and an empty result. It downloaded and visually checked the one-page filtered PDF. All 14 backend tests passed with Kafka. The Angular production build succeeded with CommonJS optimization warnings from the PDF package's dependencies, and npm audit found zero known vulnerabilities.

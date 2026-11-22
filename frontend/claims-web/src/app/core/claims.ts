@@ -2,7 +2,21 @@ export const claimStatuses = [
   'Submitted', 'UnderReview', 'AwaitingInformation', 'Approved', 'Rejected', 'Settled',
 ] as const;
 export type ClaimStatus = typeof claimStatuses[number];
-export type ClaimType = 'Motor' | 'Property';
+export const claimTypes = ['Motor', 'Property'] as const;
+export const claimCurrencies = ['MYR', 'SGD', 'AUD', 'HKD', 'NZD', 'USD'] as const;
+export type ClaimType = typeof claimTypes[number];
+export type ClaimCurrency = typeof claimCurrencies[number];
+export interface ClaimAmount {
+  amount: number;
+  currency: ClaimCurrency;
+}
+
+export function parseClaimAmount(value: string): number | null {
+  const amount = Number(value);
+  return /^\d+(\.\d{1,2})?$/.test(value.trim()) && amount <= 1_000_000_000 ? amount : null;
+}
+
+export const amountValidationMessage = 'Enter an amount from 0 to 1,000,000,000 with up to two decimal places.';
 export type ReviewAction = 'pick-up' | 'questions' | 'replies' | 'approve' | 'reject' | 'settle' | 'rejection-reason';
 export type Role = 'Claimant' | 'ClaimsStaff';
 
@@ -38,12 +52,18 @@ export interface Claim {
   createdAt: string;
   updatedAt: string;
   rejectionReason: string | null;
+  requestedAmountMinor: number | null;
+  requestedCurrency: ClaimCurrency | null;
+  approvedAmountMinor: number | null;
+  approvedCurrency: ClaimCurrency | null;
 }
 
 export interface NewClaim {
   type: ClaimType;
   incidentDate: string;
   description: string;
+  requestedAmount?: number;
+  requestedCurrency?: ClaimCurrency;
 }
 
 export interface ClaimMessage {

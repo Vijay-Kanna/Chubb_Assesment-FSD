@@ -7,6 +7,9 @@
         <span>Claims<span class="brand-sub">Workspace</span></span>
       </a>
       <nav class="navigation" aria-label="Workspace">
+        @if (session.isStaff()) {
+          <a routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page"><ng-icon name="lucideLayoutDashboard" /> Dashboard</a>
+        }
         <a [routerLink]="session.listRoute()" routerLinkActive="active" ariaCurrentWhenActive="page">
           <ng-icon name="lucideFiles" /> {{ session.isStaff() ? 'Staff queue' : 'My claims' }}
         </a>

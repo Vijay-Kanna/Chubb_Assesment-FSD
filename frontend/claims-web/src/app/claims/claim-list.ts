@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse, httpResource } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowDownRight, lucideArrowRight, lucideClipboardList, lucidePlus } from '@ng-icons/lucide';
@@ -28,8 +28,13 @@ export class ClaimList {
   protected readonly pickupError = signal('');
   protected readonly assignedClaim = signal<Claim | null>(null);
   protected readonly taking = signal<ReadonlySet<string>>(new Set());
-  protected readonly filter = signal<ClaimStatus | ''>('');
-  protected readonly page = signal(1);
+  readonly requestedStatus = input<string | undefined>(undefined, { alias: 'status' });
+  protected readonly filter = linkedSignal<ClaimStatus | ''>(() => {
+    const status = this.requestedStatus();
+    if (status === 'all' || this.conversationList()) return '';
+    return claimStatuses.find(option => option === status) ?? 'Submitted';
+  });
+  protected readonly page = linkedSignal({ source: this.filter, computation: () => 1 });
   protected readonly statuses = claimStatuses;
   protected readonly labels = statusLabels;
   protected readonly reference = claimReference;
@@ -54,7 +59,6 @@ export class ClaimList {
   protected changeFilter(value: string) {
     const status = this.statuses.find(option => option === value) ?? '';
     this.filter.set(status);
-    this.page.set(1);
   }
 
   protected changePage(delta: number) {

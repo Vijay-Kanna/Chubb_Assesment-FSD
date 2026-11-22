@@ -12,7 +12,7 @@
   }
 </header>
 
-@if (!session.isStaff() && !filter() && responseNeeded()) {
+@if (!session.isStaff() && responseNeeded()) {
   <aside class="notice-strip">
     <ng-icon name="lucideArrowDownRight" /> One or more claims on this page need a reply.
   </aside>
@@ -27,18 +27,18 @@
   </div>
 }
 
-<section class="surface" aria-labelledby="claims-heading">
+<section class="surface claims-surface" aria-labelledby="claims-heading">
   <div class="section-bar">
     <h2 id="claims-heading">{{ conversationList() ? 'Claim threads' : isQueue() ? 'Available and assigned' : 'Claim activity' }}</h2>
-    <div class="section-tools">
-      <label class="filter-label">Status
-        <select #statusFilter [value]="filter()" (change)="changeFilter(statusFilter.value)">
-          <option value="">All statuses</option>
-          @for (status of statuses; track status) { <option [value]="status">{{ labels[status] }}</option> }
-        </select>
-      </label>
-    </div>
   </div>
+  @if (!conversationList()) {
+    <div class="claim-tabs" role="group" aria-label="Filter claims by status">
+      @for (status of statuses; track status) {
+        <button type="button" [attr.aria-pressed]="filter() === status" (click)="changeFilter(status)">{{ labels[status] }}</button>
+      }
+      <button type="button" [attr.aria-pressed]="!filter()" (click)="changeFilter('')">All claims</button>
+    </div>
+  }
   @if (claims.isLoading() && !claims.hasValue()) {
     <p class="state" role="status">Loading claims…</p>
   } @else if (claims.error()) {

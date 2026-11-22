@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Claim, NewClaim, ReviewAction, claimUrl, claimsApi } from './claims';
+import { Claim, ClaimAmount, NewClaim, ReviewAction, claimUrl, claimsApi } from './claims';
 
 @Injectable({ providedIn: 'root' })
 export class ClaimsClient {
@@ -11,12 +11,12 @@ export class ClaimsClient {
     return firstValueFrom(this.http.post<Claim>(claimsApi + '/claims', claim));
   }
 
-  review(id: string, action: ReviewAction, body?: string) {
+  review(id: string, action: ReviewAction, body?: string | ClaimAmount) {
     const url = claimUrl(id) + '/' + action;
     if (action === 'rejection-reason') {
       return firstValueFrom(this.http.put<Claim>(url, { reason: body }));
     }
-    const payload = action === 'reject' ? { reason: body } : body ? { body } : null;
+    const payload = action === 'reject' ? { reason: body } : typeof body === 'object' ? body : body ? { body } : null;
     return firstValueFrom(this.http.post<Claim>(url, payload));
   }
 

@@ -1,63 +1,111 @@
-<header class="page-header report-header">
-  <div><h1>Claims reports</h1><p class="muted">Team workload, decisions, and outstanding exposure.</p></div>
-  <div class="header-tools">
-    <label class="filter-label">Activity window
-      <select #windowSelector [value]="days()" (change)="selectWindow(windowSelector.value)">
-        @for (window of windows; track window) { <option [value]="window">Last {{ window }} days</option> }
-      </select>
-    </label>
+<header [class.dashboard-header]="dashboard()" class="page-header report-header">
+  <div>
+    <h1>{{ dashboard() ? 'Claims dashboard' : 'Claims reports' }}</h1>
+    <p class="muted">{{ dashboard() ? 'All-time claim volume, decisions, and recorded amounts.' : 'Review claims and staff activity by submission date.' }}</p>
   </div>
+  @if (dashboard()) {
+    <a class="button quiet" routerLink="/reports">Open reports <ng-icon name="lucideArrowRight" /></a>
+  } @else {
+    <button class="primary" type="button" (click)="download(overview.value()!)"
+      [disabled]="!overview.hasValue() || overview.isLoading() || exporting()">
+      <ng-icon name="lucideDownload" /> {{ exporting() ? 'Preparing PDF…' : 'Export PDF' }}
+    </button>
+  }
 </header>
 
+@if (!dashboard()) {
+  <section class="surface padded report-filters" aria-labelledby="date-range-heading">
+    <h2 id="date-range-heading">Submission date</h2>
+    <div class="period-options" role="group" aria-label="Reporting period">
+      @for (window of windows; track window) {
+        <button type="button" class="quiet" [attr.aria-pressed]="period() === window" (click)="selectWindow(window)">Last {{ window }} days</button>
+      }
+      <button type="button" class="quiet" [attr.aria-pressed]="period() === 'custom'" (click)="period.set('custom')">Custom range</button>
+    </div>
+    @if (period() === 'custom') {
+      <form class="date-range" novalidate (submit)="applyRange($event)">
+        <label class="field">Start date<input type="date" required [value]="start()" (input)="start.set($event.target.value)" /></label>
+        <label class="field">End date<input type="date" required [value]="end()" (input)="end.set($event.target.value)" /></label>
+        <button class="primary" type="submit">Apply range</button>
+      </form>
+      @if (rangeError()) { <p class="error-box" role="alert">{{ rangeError() }}</p> }
+    }
+    <p class="muted report-caption">Dates are inclusive and use UTC.</p>
+  </section>
+  @if (exportError()) { <p class="error-box" role="alert">{{ exportError() }}</p> }
+}
+
 @if (overview.error()) {
-  <p class="error-box" role="alert">Could not load the report.</p>
+  <p class="error-box" role="alert">Could not load the {{ dashboard() ? 'dashboard' : 'report' }}.</p>
   <button class="quiet" type="button" (click)="overview.reload()">Try again</button>
 } @else if (overview.hasValue()) {
   @let report = overview.value();
-  <dl class="report-totals">
+  @if (report.startDate && report.endDate) {
+    <p class="report-range" role="status">Showing {{ (report.startDate + 'T00:00:00Z') | date:'d MMM y':'UTC' }} to {{ (report.endDate + 'T00:00:00Z') | date:'d MMM y':'UTC' }}</p>
+  }
+  <dl class="report-totals" aria-label="Claim counts">
+    <div><dt>Total submissions</dt><dd>{{ report.totalClaims }}</dd></div>
     <div><dt>Open claims</dt><dd>{{ report.openClaims }}</dd></div>
-    <div><dt>Unassigned</dt><dd>{{ report.unassigned }}</dd></div>
     <div><dt>Awaiting information</dt><dd>{{ report.awaitingInformation }}</dd></div>
-    <div><dt>Decisions in {{ report.days }} days</dt><dd>{{ decisions() }}</dd></div>
+    <div>
+      <dt>{{ dashboard() ? 'Unassigned' : 'Decisions in range' }}</dt>
+      <dd>{{ dashboard() ? report.unassigned : decisions() }}</dd>
+    </div>
   </dl>
+  <div class="money-grid">
+    @for (card of [
+      { title: 'Requested amounts', rows: report.requested, empty: 'No requested amounts recorded' },
+      { title: 'Approved amounts', rows: report.approved, empty: 'No approved amounts recorded' },
+      { title: 'Outstanding exposure', rows: report.exposure, empty: 'No open claims with estimates' },
+    ]; track card.title) {
+      <section class="surface padded money-card" [attr.aria-label]="card.title">
+        <h2>{{ card.title }}</h2>
+        <dl class="exposure-totals">
+          @for (row of card.rows; track row.currency) {
+            <div>
+              <dt>{{ row.currency }} <small>{{ row.claims }} {{ row.claims === 1 ? 'claim' : 'claims' }}</small></dt>
+              <dd>{{ row.amountMinor / 100 | number:'1.2-2' }}</dd>
+            </div>
+          } @empty { <div><dt class="muted">{{ card.empty }}</dt></div> }
+        </dl>
+        @if (card.title === 'Outstanding exposure') {
+          <p class="coverage-note">{{ report.missingExposure }} of {{ report.openClaims }} open claims have no estimate.</p>
+        }
+      </section>
+    }
+  </div>
   <div class="report-panels">
     <section class="surface padded" aria-labelledby="status-report">
-      <h2 id="status-report" class="section-title"><ng-icon name="lucideChartNoAxesColumnIncreasing" /> Claims by status</h2>
+      <h2 id="status-report">Claims by current status</h2>
       <ul class="status-bars">
         @for (row of report.statuses; track row.status) {
           <li>
-            <span>{{ labels[row.status] }}</span>
+            @if (dashboard()) {
+              <a class="text-link" routerLink="/staff" [queryParams]="{ status: row.status }">{{ labels[row.status] }}</a>
+            } @else { <span>{{ labels[row.status] }}</span> }
             <span class="bar-track" aria-hidden="true"><span [attr.data-status]="row.status" [style.width.%]="row.count * 100 / peak()"></span></span>
             <strong>{{ row.count }}</strong>
           </li>
         }
       </ul>
+      @if (dashboard()) { <p class="muted report-caption">Opening a status shows claims available to you.</p> }
     </section>
-    <section class="surface padded" aria-labelledby="exposure-report">
-      <h2 id="exposure-report">Outstanding exposure</h2>
-      <p class="muted report-caption">Estimates on open claims, grouped by currency.</p>
-      <dl class="exposure-totals">
-        @for (row of report.exposure; track row.currency) {
-          <div><dt>{{ row.currency }} <small>{{ row.claims }} {{ row.claims === 1 ? 'claim' : 'claims' }}</small></dt>
-            <dd>{{ row.amountMinor / 100 | currency:row.currency:'code' }}</dd></div>
-        } @empty { <div><dt>No estimates recorded</dt></div> }
-      </dl>
-      <p class="coverage-note">{{ report.missingExposure }} of {{ report.openClaims }} open claims have no estimate.</p>
-    </section>
+    @if (!dashboard()) {
+      <section class="surface padded" aria-labelledby="team-report">
+        <h2 id="team-report">Staff activity</h2>
+        <p class="muted report-caption">Current assignments for these claims and decisions or settlements recorded within the selected dates.</p>
+        <table class="report-table">
+          <thead><tr><th scope="col">Staff member</th><th scope="col">Open claims</th><th scope="col">Decisions</th><th scope="col">Settlements</th></tr></thead>
+          <tbody>
+            @for (person of report.staff; track $index) {
+              <tr><th scope="row">{{ person.name }}</th><td>{{ person.openClaims }}</td><td>{{ person.decisions }}</td><td>{{ person.settlements }}</td></tr>
+            } @empty { <tr><td colspan="4">No staff accounts are available.</td></tr> }
+          </tbody>
+        </table>
+      </section>
+    }
   </div>
-  <section class="surface padded" aria-labelledby="team-report">
-    <h2 id="team-report">Staff activity</h2>
-    <p class="muted report-caption">Current assignments and completed actions in the last {{ report.days }} days.</p>
-    <table class="report-table">
-      <thead><tr><th scope="col">Staff member</th><th scope="col">Open claims</th><th scope="col">Decisions</th><th scope="col">Settlements</th></tr></thead>
-      <tbody>
-        @for (person of report.staff; track $index) {
-          <tr><th scope="row">{{ person.name }}</th><td>{{ person.openClaims }}</td><td>{{ person.decisions }}</td><td>{{ person.settlements }}</td></tr>
-        } @empty { <tr><td colspan="4">No staff accounts are available.</td></tr> }
-      </tbody>
-    </table>
-  </section>
-  <p class="muted report-updated">Updated {{ report.generatedAt | date:'d MMM y, HH:mm' }}</p>
+  <p class="muted report-updated">Updated {{ report.generatedAt | date:'d MMM y, h:mm a':'UTC' }} UTC</p>
 } @else {
-  <p class="state" role="status">Loading the report…</p>
+  <p class="state" role="status">Loading {{ dashboard() ? 'dashboard' : 'report' }}…</p>
 }
