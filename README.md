@@ -71,7 +71,9 @@ Pickup moves the claim from `Submitted` to `UnderReview`. A question moves it to
 
 The claimant sees the decision reason and Chubb Malaysia Customer Service contact options on the rejected claim. For older rejected claims, assigned staff can add a missing reason once from the review screen or by calling `PUT /claims/{id}/rejection-reason` with the same body. The service records this action without sending a second decision notification. [Chubb Malaysia Customer Service](https://www.chubb.com/my-en/contact-us.html)
 
-The conversation is readable by the claimant who owns the claim and the assigned staff member. History records the actor, action, time, and status change, and links questions and replies to their message IDs. Staff can see unassigned claims and claims assigned to them. The list supports `status`, `assignedStaffId` (staff only), and `page` (50 results per page).
+The conversation is readable by the claimant who owns the claim and the assigned staff member. History records the actor, action, time, and status change, and links questions and replies to their message IDs. Staff can see unassigned claims and claims assigned to them. The list supports `status`, `assignedStaffId` (staff only), and `page` (50 results per page by default).
+
+For `GET /claims` and `GET /notifications`, set `pageSize` (1–100) to receive `X-Total-Count` for the filtered, authorized records. Claim history and messages enable paging and return the count when `page` or `pageSize` is supplied. Page 1 contains the latest activity, with messages in chronological order within a page. For messages, `throughMessageId` can keep older pages stable while new messages arrive. Existing requests without the new parameters keep their original array responses.
 
 ## Run Kafka notifications
 
@@ -136,7 +138,7 @@ The Angular dev server listens on loopback and proxies API requests over HTTPS w
 
 With the Claims API running and `Demo__Password` set to the demo password, run `.\scripts\seed-demo-claims.ps1` from the repository root. The script creates ten fictional motor and property claims across both claimant accounts. It uses the regular API workflow. On a rerun, it skips matching examples and fills in the known fictional reason if the sample rejected claim was created before reasons were supported.
 
-Both claim lists open on **Submitted**. Use the status tabs to see other statuses or **All claims**. Conversations has its own menu and shows threads across statuses.
+Both claim lists open on **Submitted**. Use the status tabs to see other statuses or **All claims**. Conversations has its own menu and shows threads across statuses. Claim lists, messages, history, notifications, and the staff activity table show ten records per page. Conversations open on the latest messages, and **Older** and **Newer** navigate the thread. PDF export covers the full filtered report.
 
 Sign in as `staff@example.test` and open **Dashboard** for all-time status counts, requested amounts, approved amounts, and open exposure. Amounts use their recorded currencies. Staff records an approved amount when confirming approval. Claimants can enter an optional requested amount when filing. Older submissions or approvals without an amount remain visible in status counts.
 

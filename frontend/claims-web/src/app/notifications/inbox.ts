@@ -6,9 +6,10 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowRight, lucideBell } from '@ng-icons/lucide';
 import { Notification, claimReference, notificationsApi } from '../core/claims';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
+import { Pagination, pageParameters, trackPageTotal } from '../core/pagination';
 
 @Component({
-  imports: [DatePipe, RouterLink, NgIcon],
+  imports: [DatePipe, RouterLink, NgIcon, Pagination],
   viewProviders: [provideIcons({ lucideArrowRight, lucideBell })],
   templateUrl: './inbox.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -18,13 +19,11 @@ export class Inbox {
   protected readonly reference = claimReference;
   protected readonly page = signal(1);
   protected readonly notices = httpResource<Notification[]>(() =>
-    notificationsApi + '?page=' + this.page());
+    notificationsApi + '?' + pageParameters(this.page()));
+  protected readonly total = trackPageTotal(this.notices, this.page);
 
   constructor() {
     reloadOnLiveUpdate(this.notices, this.live.notificationsVersion);
   }
 
-  protected changePage(delta: number) {
-    this.page.update(value => value + delta);
-  }
 }

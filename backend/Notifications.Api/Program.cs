@@ -56,6 +56,7 @@ public sealed class Program
         app.MapHub<NotificationsHub>(NotificationsHub.Path, options => options.CloseOnAuthenticationExpiration = true);
 
         app.MapGet("/notifications", ListNotifications)
+            .WithDescription("Set pageSize to receive the matching notification count in X-Total-Count.")
             .WithTags("Notifications")
             .WithSummary("List notifications for the signed-in claimant")
             .Produces<NotificationView[]>()
@@ -69,17 +70,22 @@ public sealed class Program
         await app.RunAsync();
     }
 
-    private static async Task<IResult> ListNotifications(ClaimsPrincipal user, NotificationsDbContext db,
-        CancellationToken cancellationToken, int page = 1)
+    private static async Task<IResult> ListNotifications(HttpContext context, ClaimsPrincipal user, NotificationsDbContext db,
+        CancellationToken cancellationToken, int page = 1, int? pageSize = null)
     {
-        if (page is < 1 or > 10000)
-            return Results.ValidationProblem(new Dictionary<string, string[]> { ["page"] = ["Enter a page from 1 to 10000."] });
+        var window = new PageWindow(page, pageSize ?? PageWindow.DefaultSize);
+        if (!window.IsValid)
+            return Results.ValidationProblem(window.ValidationErrors());
 
         var recipient = Guid.Parse(user.FindFirstValue(JwtRegisteredClaimNames.Sub)!);
-        var notifications = await db.Notifications.AsNoTracking()
-            .Where(notification => notification.RecipientUserId == recipient)
-            .OrderByDescending(notification => notification.CreatedAt).ThenBy(notification => notification.EventId)
-            .Skip((page - 1) * 50).Take(50).ToListAsync(cancellationToken);
+        var query = db.Notifications.AsNoTracking().Where(notification => notification.RecipientUserId == recipient);
+        if (pageSize.HasValue)
+        {
+            var total = await query.CountAsync(cancellationToken);
+            context.Response.Headers[PageWindow.TotalHeader] = total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        var notifications = await query.OrderByDescending(notification => notification.CreatedAt).ThenBy(notification => notification.EventId)
+            .Skip(window.Offset).Take(window.Size).ToListAsync(cancellationToken);
 
         return Results.Ok(notifications.Select(notification => new NotificationView(
             notification.EventId, notification.ClaimId, notification.Type, notification.CreatedAt,

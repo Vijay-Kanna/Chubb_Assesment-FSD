@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Claims.Api.Application;
 using Claims.Api.Domain;
+using Claims.Contracts;
 using Claim = Claims.Api.Domain.Claim;
 
 namespace Claims.Api.Endpoints;
@@ -16,10 +17,13 @@ internal static class ClaimsEndpoints
 
         claims.MapPost("", Submit).RequireAuthorization(Role.Claimant)
             .Produces<ClaimView>(StatusCodes.Status201Created).ProducesValidationProblem();
-        claims.MapGet("", List).Produces<ClaimView[]>().ProducesValidationProblem();
+        claims.MapGet("", List).WithDescription("Set pageSize to receive the matching record count in X-Total-Count.")
+            .Produces<ClaimView[]>().ProducesValidationProblem();
         claims.MapGet("/{id:guid}", Get).Produces<ClaimView>().Produces(StatusCodes.Status404NotFound);
-        claims.MapGet("/{id:guid}/history", History).Produces<HistoryView[]>().Produces(StatusCodes.Status404NotFound);
-        claims.MapGet("/{id:guid}/messages", Messages).Produces<ClaimMessageView[]>().Produces(StatusCodes.Status404NotFound);
+        claims.MapGet("/{id:guid}/history", History).WithDescription("Pass page or pageSize for latest-first pages and X-Total-Count.")
+            .Produces<HistoryView[]>().ProducesValidationProblem().Produces(StatusCodes.Status404NotFound);
+        claims.MapGet("/{id:guid}/messages", Messages).WithDescription("Pass page or pageSize for latest-first pages and X-Total-Count. Messages are chronological within each page. Use throughMessageId to keep an older page stable.")
+            .Produces<ClaimMessageView[]>().ProducesValidationProblem().Produces(StatusCodes.Status404NotFound);
         claims.MapGet("/{id:guid}/exposure", GetExposure).RequireAuthorization(Role.ClaimsStaff)
             .WithSummary("Read the assigned staff member's exposure estimate")
             .Produces<ExposureEstimate>().Produces(StatusCodes.Status404NotFound);
@@ -63,18 +67,22 @@ internal static class ClaimsEndpoints
         return Results.Created($"/claims/{claim.Id}", claim);
     }
 
-    private static async Task<IResult> List(ClaimsPrincipal user, ClaimsService service,
-        CancellationToken cancellationToken, ClaimStatus? status = null, Guid? assignedStaffId = null, int page = 1)
+    private static async Task<IResult> List(HttpContext context, ClaimsPrincipal user, ClaimsService service,
+        CancellationToken cancellationToken, ClaimStatus? status = null, Guid? assignedStaffId = null, int page = 1,
+        int? pageSize = null)
     {
         var isStaff = user.IsInRole(Role.ClaimsStaff);
-        if (page is < 1 or > 10000)
-            return Results.ValidationProblem(new Dictionary<string, string[]> { ["page"] = ["Enter a page from 1 to 10000."] });
+        var window = new PageWindow(page, pageSize ?? PageWindow.DefaultSize);
+        if (!window.IsValid)
+            return Results.ValidationProblem(window.ValidationErrors());
         if (!isStaff && assignedStaffId is not null)
             return Results.Forbid();
         if (status is not null && !Enum.IsDefined(status.Value))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["status"] = ["Enter a valid claim status."] });
 
-        return Results.Ok(await service.ListAsync(UserId(user), isStaff, status, assignedStaffId, page, cancellationToken));
+        var claims = await service.ListAsync(UserId(user), isStaff, status, assignedStaffId, window,
+            pageSize.HasValue, cancellationToken);
+        return PageResult(context, claims);
     }
 
     private static async Task<IResult> Get(Guid id, ClaimsPrincipal user, ClaimsService service,
@@ -84,11 +92,15 @@ internal static class ClaimsEndpoints
         return claim is null ? Results.NotFound() : Results.Ok(claim);
     }
 
-    private static async Task<IResult> History(Guid id, ClaimsPrincipal user, ClaimsService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> History(Guid id, HttpContext context, ClaimsPrincipal user, ClaimsService service,
+        CancellationToken cancellationToken, int? page = null, int? pageSize = null)
     {
-        var history = await service.HistoryAsync(id, UserId(user), user.IsInRole(Role.ClaimsStaff), cancellationToken);
-        return history is null ? Results.NotFound() : Results.Ok(history);
+        var window = OptionalPage(page, pageSize);
+        if (window is { IsValid: false } invalid)
+            return Results.ValidationProblem(invalid.ValidationErrors());
+
+        var history = await service.HistoryAsync(id, UserId(user), user.IsInRole(Role.ClaimsStaff), window, cancellationToken);
+        return PageResult(context, history);
     }
 
     private static async Task<IResult> PickUp(Guid id, ClaimsPrincipal user, ClaimsService service,
@@ -98,11 +110,34 @@ internal static class ClaimsEndpoints
         return ChangeResult(change, "This claim has already been picked up by a staff member and cannot be taken again.");
     }
 
-    private static async Task<IResult> Messages(Guid id, ClaimsPrincipal user, ClaimsService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> Messages(Guid id, HttpContext context, ClaimsPrincipal user, ClaimsService service,
+        CancellationToken cancellationToken, int? page = null, int? pageSize = null, long? throughMessageId = null)
     {
-        var messages = await service.MessagesAsync(id, UserId(user), user.IsInRole(Role.ClaimsStaff), cancellationToken);
-        return messages is null ? Results.NotFound() : Results.Ok(messages);
+        var window = OptionalPage(page, pageSize);
+        if (window is { IsValid: false } invalid)
+            return Results.ValidationProblem(invalid.ValidationErrors());
+        if (throughMessageId.HasValue && (window is null || throughMessageId <= 0))
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["throughMessageId"] = ["Use a positive message ID with page or pageSize."]
+            });
+
+        var messages = await service.MessagesAsync(id, UserId(user), user.IsInRole(Role.ClaimsStaff),
+            window, throughMessageId, cancellationToken);
+        return PageResult(context, messages);
+    }
+
+    private static PageWindow? OptionalPage(int? page, int? pageSize) =>
+        page is null && pageSize is null ? null : new PageWindow(page ?? 1, pageSize ?? PageWindow.DefaultSize);
+
+    private static IResult PageResult<T>(HttpContext context, PageItems<T>? page)
+    {
+        if (page is null)
+            return Results.NotFound();
+
+        if (page.Total is { } total)
+            context.Response.Headers[PageWindow.TotalHeader] = total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Results.Ok(page.Items);
     }
 
     private static async Task<IResult> GetExposure(Guid id, ClaimsPrincipal user, ClaimsService service,

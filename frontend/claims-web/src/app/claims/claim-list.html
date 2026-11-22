@@ -97,12 +97,7 @@
         @else if (!session.isStaff() && page() === 1) { <a class="text-link" routerLink="/claims/new">Submit a claim <ng-icon name="lucideArrowRight" /></a> }
       </div>
     }
-    @if (page() > 1 || claims.value().length === 50) {
-      <div class="pagination">
-        <button class="quiet" type="button" (click)="changePage(-1)" [disabled]="page() === 1">Previous</button>
-        <span>Page {{ page() }}</span>
-        <button class="quiet" type="button" (click)="changePage(1)" [disabled]="claims.value().length < 50 || page() === 10000">Next</button>
-      </div>
-    }
   }
+  <app-pagination [label]="conversationList() ? 'Conversation list pages' : 'Claim list pages'"
+    [total]="total()" [page]="page()" [loading]="claims.isLoading()" (pageChange)="page.set($event)" />
 </section>

@@ -1,11 +1,12 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { httpResource } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowRight, lucideDownload } from '@ng-icons/lucide';
 import { ClaimStatus, claimsApi, statusLabels, todayUtc } from '../core/claims';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
+import { Pagination, pageSize } from '../core/pagination';
 
 export interface ReportTotal {
   currency: string;
@@ -36,7 +37,7 @@ function recentRange(days: number) {
 }
 
 @Component({
-  imports: [DatePipe, DecimalPipe, RouterLink, NgIcon],
+  imports: [DatePipe, DecimalPipe, RouterLink, NgIcon, Pagination],
   viewProviders: [provideIcons({ lucideArrowRight, lucideDownload })],
   templateUrl: './reports.html',
   styleUrl: './reports.css',
@@ -57,6 +58,12 @@ export class Reports {
   protected readonly overview = httpResource<ReportsOverview>(() =>
     claimsApi + '/reports/overview' + (this.dashboard() ? '' : '?' + new URLSearchParams(this.range())),
   );
+  protected readonly staffPage = linkedSignal({ source: () => [this.dashboard(), this.range()], computation: () => 1 });
+  protected readonly staffRows = computed(() => {
+    if (!this.overview.hasValue()) return [];
+    const start = (this.staffPage() - 1) * pageSize;
+    return this.overview.value().staff.slice(start, start + pageSize);
+  });
   protected readonly peak = computed(() => Math.max(1, ...(this.overview.hasValue()
     ? this.overview.value().statuses.map(row => row.count) : [])));
   protected readonly decisions = computed(() => this.overview.hasValue()

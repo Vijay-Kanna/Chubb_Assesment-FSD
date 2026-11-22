@@ -101,6 +101,23 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, read.StatusCode);
         using var history = await Request(HttpMethod.Get, $"/claims/{id}/history", other);
         Assert.Equal(HttpStatusCode.NotFound, history.StatusCode);
+        await ExpectStatus(HttpMethod.Get, $"/claims/{id}/history?page=1&pageSize=1", other, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Get, $"/claims/{id}/messages?page=1&pageSize=1", other, HttpStatusCode.NotFound);
+
+        _ = await Submit(claimant);
+        using var firstPage = await Request(HttpMethod.Get, "/claims?status=Submitted&page=1&pageSize=1", claimant);
+        using var secondPage = await Request(HttpMethod.Get, "/claims?status=Submitted&page=2&pageSize=1", claimant);
+        Assert.Equal(HttpStatusCode.OK, firstPage.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondPage.StatusCode);
+        var total = Assert.Single(firstPage.Headers.GetValues("X-Total-Count"));
+        Assert.True(int.Parse(total) >= 2);
+        Assert.Equal(total, Assert.Single(secondPage.Headers.GetValues("X-Total-Count")));
+        var firstItem = Assert.Single((await Read(firstPage)).EnumerateArray());
+        var secondItem = Assert.Single((await Read(secondPage)).EnumerateArray());
+        Assert.Equal("Submitted", firstItem.GetProperty("status").GetString());
+        Assert.Equal("Submitted", secondItem.GetProperty("status").GetString());
+        Assert.NotEqual(firstItem.GetProperty("id").GetGuid(), secondItem.GetProperty("id").GetGuid());
+        await ExpectStatus(HttpMethod.Get, "/claims?pageSize=101", claimant, HttpStatusCode.BadRequest);
         using var list = await Request(HttpMethod.Get, "/claims", other);
         Assert.DoesNotContain((await Read(list)).EnumerateArray(), claim => claim.GetProperty("id").GetGuid() == id);
         using var pickUp = await Request(HttpMethod.Post, $"/claims/{id}/pick-up", claimant);
@@ -172,6 +189,22 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         Assert.Equal([staffId, claimantId, staffId, claimantId],
             conversation.Select(message => message.GetProperty("senderUserId").GetGuid()));
 
+        using var newest = await Request(HttpMethod.Get, $"{path}/messages?page=1&pageSize=2", staff);
+        Assert.Equal(HttpStatusCode.OK, newest.StatusCode);
+        Assert.Equal("4", Assert.Single(newest.Headers.GetValues("X-Total-Count")));
+        Assert.Equal(["When did you notice the damage?", "The following morning."],
+            (await Read(newest)).EnumerateArray().Select(message => message.GetProperty("body").GetString()));
+        using var older = await Request(HttpMethod.Get, $"{path}/messages?page=2&pageSize=2", claimant);
+        Assert.Equal(HttpStatusCode.OK, older.StatusCode);
+        Assert.Equal(["Where was the car parked?", "Outside my home."],
+            (await Read(older)).EnumerateArray().Select(message => message.GetProperty("body").GetString()));
+
+        var anchor = conversation[1].GetProperty("id").GetInt64();
+        using var anchored = await Request(HttpMethod.Get, $"{path}/messages?page=2&pageSize=1&throughMessageId={anchor}", staff);
+        Assert.Equal(HttpStatusCode.OK, anchored.StatusCode);
+        Assert.Equal("2", Assert.Single(anchored.Headers.GetValues("X-Total-Count")));
+        Assert.Equal("Where was the car parked?", Assert.Single((await Read(anchored)).EnumerateArray()).GetProperty("body").GetString());
+
         using var history = await Request(HttpMethod.Get, $"{path}/history", staff);
         Assert.Equal(HttpStatusCode.OK, history.StatusCode);
         var entries = (await Read(history)).EnumerateArray().ToArray();
@@ -182,6 +215,14 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
             entries[2..6].Select(entry => entry.GetProperty("claimMessageId").GetInt64()));
         Assert.Equal("Approved", entries[^1].GetProperty("previousStatus").GetString());
         Assert.Equal("Settled", entries[^1].GetProperty("newStatus").GetString());
+        using var newestHistory = await Request(HttpMethod.Get, $"{path}/history?page=1&pageSize=2", staff);
+        Assert.Equal(HttpStatusCode.OK, newestHistory.StatusCode);
+        Assert.Equal("8", Assert.Single(newestHistory.Headers.GetValues("X-Total-Count")));
+        Assert.Equal(["Settled", "Approved"],
+            (await Read(newestHistory)).EnumerateArray().Select(entry => entry.GetProperty("action").GetString()));
+        using var emptyHistory = await Request(HttpMethod.Get, $"{path}/history?page=5&pageSize=2", staff);
+        Assert.Equal(HttpStatusCode.OK, emptyHistory.StatusCode);
+        Assert.Empty((await Read(emptyHistory)).EnumerateArray());
     }
 
     [Fact]

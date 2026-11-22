@@ -128,6 +128,21 @@ public sealed class NotificationDeliveryTests
             Assert.DoesNotContain(reason, rejected.GetRawText(), StringComparison.Ordinal);
             Assert.Empty(await List(notifications, other));
             Assert.False(otherNotices.Reader.TryRead(out _));
+
+            using var latest = await Send(notifications, HttpMethod.Get, "/notifications?page=1&pageSize=2", claimant);
+            latest.EnsureSuccessStatusCode();
+            Assert.Equal("4", Assert.Single(latest.Headers.GetValues("X-Total-Count")));
+            var latestNotices = (await latest.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray()
+                .Select(notice => notice.GetProperty("type").GetString()!).ToArray();
+            Assert.Equal(["Rejected", "Settled"], latestNotices);
+            using var older = await Send(notifications, HttpMethod.Get, "/notifications?page=2&pageSize=2", claimant);
+            older.EnsureSuccessStatusCode();
+            var olderNotices = (await older.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray()
+                .Select(notice => notice.GetProperty("type").GetString()!).ToArray();
+            Assert.Equal(["Approved", "QuestionAsked"], olderNotices);
+            using var isolated = await Send(notifications, HttpMethod.Get, "/notifications?page=1&pageSize=2", other);
+            isolated.EnsureSuccessStatusCode();
+            Assert.Equal("0", Assert.Single(isolated.Headers.GetValues("X-Total-Count")));
         }
         finally
         {

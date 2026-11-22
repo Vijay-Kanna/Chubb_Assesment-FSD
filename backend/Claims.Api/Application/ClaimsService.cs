@@ -20,8 +20,8 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, Clai
         return ClaimView.From(claim);
     }
 
-    public async Task<IReadOnlyList<ClaimView>> ListAsync(Guid userId, bool isStaff, ClaimStatus? status,
-        Guid? assignedStaffId, int page, CancellationToken cancellationToken)
+    public async Task<PageItems<ClaimView>> ListAsync(Guid userId, bool isStaff, ClaimStatus? status,
+        Guid? assignedStaffId, PageWindow page, bool includeTotal, CancellationToken cancellationToken)
     {
         var query = VisibleClaims(userId, isStaff);
         if (status is not null)
@@ -29,10 +29,11 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, Clai
         if (assignedStaffId is not null)
             query = query.Where(claim => claim.AssignedStaffId == assignedStaffId);
 
+        int? total = includeTotal ? await query.CountAsync(cancellationToken) : null;
         var claims = await query.OrderByDescending(claim => claim.CreatedAt).ThenBy(claim => claim.Id)
-            .Skip((page - 1) * 50).Take(50).ToListAsync(cancellationToken);
+            .Skip(page.Offset).Take(page.Size).ToListAsync(cancellationToken);
 
-        return claims.Select(ClaimView.From).ToList();
+        return new(claims.Select(ClaimView.From).ToList(), total);
     }
 
     public async Task<ClaimView?> GetAsync(Guid id, Guid userId, bool isStaff, CancellationToken cancellationToken)
@@ -41,20 +42,26 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, Clai
         return claim is null ? null : ClaimView.From(claim);
     }
 
-    public async Task<IReadOnlyList<HistoryView>?> HistoryAsync(Guid id, Guid userId, bool isStaff,
-        CancellationToken cancellationToken)
+    public async Task<PageItems<HistoryView>?> HistoryAsync(Guid id, Guid userId, bool isStaff,
+        PageWindow? page, CancellationToken cancellationToken)
     {
         var authorizedClaim = VisibleClaims(userId, isStaff).Where(claim => claim.Id == id);
-        var entries = await db.ClaimHistory.AsNoTracking()
+        var history = db.ClaimHistory.AsNoTracking()
             .Where(entry => authorizedClaim.Any(claim => claim.Id == entry.ClaimId))
-            .Where(entry => isStaff || entry.Action != ClaimAction.ExposureUpdated)
-            .OrderBy(entry => entry.Id)
-            .Select(entry => new HistoryView(entry.Id, entry.ActorUserId, entry.Action, entry.PreviousStatus,
-                entry.NewStatus, entry.OccurredAt, entry.ClaimMessageId))
-            .ToListAsync(cancellationToken);
+            .Where(entry => isStaff || entry.Action != ClaimAction.ExposureUpdated);
 
-        // Every submitted claim has a history entry, committed with the claim.
-        return entries.Count == 0 ? null : entries;
+        // Every visible claim has a submission entry, including when the requested page is empty.
+        int? total = page.HasValue ? await history.CountAsync(cancellationToken) : null;
+        if (total == 0)
+            return null;
+
+        var query = page is { } window
+            ? history.OrderByDescending(entry => entry.Id).Skip(window.Offset).Take(window.Size)
+            : history.OrderBy(entry => entry.Id);
+        var entries = await query.Select(entry => new HistoryView(entry.Id, entry.ActorUserId, entry.Action,
+            entry.PreviousStatus, entry.NewStatus, entry.OccurredAt, entry.ClaimMessageId)).ToListAsync(cancellationToken);
+
+        return total is null && entries.Count == 0 ? null : new(entries, total);
     }
 
     public Task<ExposureEstimate?> GetExposureAsync(Guid id, Guid staffId, CancellationToken cancellationToken) =>
@@ -81,16 +88,28 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, Clai
         return await SaveChangeAsync(claim, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ClaimMessageView>?> MessagesAsync(Guid id, Guid userId, bool isStaff,
-        CancellationToken cancellationToken)
+    public async Task<PageItems<ClaimMessageView>?> MessagesAsync(Guid id, Guid userId, bool isStaff,
+        PageWindow? page, long? throughMessageId, CancellationToken cancellationToken)
     {
-        return await ParticipantClaims(userId, isStaff).AsNoTracking()
-            .Where(claim => claim.Id == id)
-            .Select(claim => db.ClaimMessages.Where(message => message.ClaimId == claim.Id)
-                .OrderBy(message => message.Id)
-                .Select(message => new ClaimMessageView(message.Id, message.SenderUserId, message.Body, message.SentAt))
-                .ToList())
-            .SingleOrDefaultAsync(cancellationToken);
+        var participant = ParticipantClaims(userId, isStaff).AsNoTracking().Where(claim => claim.Id == id);
+        if (!await participant.AnyAsync(cancellationToken))
+            return null;
+
+        var messages = db.ClaimMessages.AsNoTracking()
+            .Where(message => participant.Any(claim => claim.Id == message.ClaimId));
+        if (throughMessageId is { } lastId)
+            messages = messages.Where(message => message.Id <= lastId);
+        int? total = page.HasValue ? await messages.CountAsync(cancellationToken) : null;
+        var query = page is { } window
+            ? messages.OrderByDescending(message => message.Id).Skip(window.Offset).Take(window.Size)
+            : messages.OrderBy(message => message.Id);
+        var entries = await query.Select(message => new ClaimMessageView(message.Id, message.SenderUserId,
+            message.Body, message.SentAt)).ToListAsync(cancellationToken);
+
+        if (page.HasValue)
+            entries.Reverse();
+
+        return new(entries, total);
     }
 
     public async Task<ClaimChange> PickUpAsync(Guid id, Guid staffId,

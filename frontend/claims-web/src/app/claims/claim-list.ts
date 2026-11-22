@@ -9,9 +9,10 @@ import { ClaimsClient, errorMessage } from '../core/api';
 import { Session } from '../core/session';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 import { StatusPill } from './status-pill';
+import { Pagination, pageParameters, trackPageTotal } from '../core/pagination';
 
 @Component({
-  imports: [DatePipe, RouterLink, NgIcon, StatusPill],
+  imports: [DatePipe, RouterLink, NgIcon, StatusPill, Pagination],
   viewProviders: [provideIcons({ lucideArrowDownRight, lucideArrowRight, lucideClipboardList, lucidePlus })],
   templateUrl: './claim-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,7 +40,7 @@ export class ClaimList {
   protected readonly labels = statusLabels;
   protected readonly reference = claimReference;
   protected readonly claims = httpResource<Claim[]>(() => {
-    const params = new URLSearchParams({ page: String(this.page()) });
+    const params = pageParameters(this.page());
     if (this.filter()) params.set('status', this.filter());
     const user = this.session.current();
     if (this.conversationList() && user?.role === 'ClaimsStaff') {
@@ -47,6 +48,7 @@ export class ClaimList {
     }
     return claimsApi + '/claims?' + params.toString();
   });
+  protected readonly total = trackPageTotal(this.claims, this.page);
   protected readonly loadError = computed(() => errorMessage(this.claims.error(), 'Could not load the claims.'));
   protected readonly responseNeeded = computed(() =>
     this.claims.hasValue() && this.claims.value().some(claim => claim.status === 'AwaitingInformation'),
@@ -59,10 +61,6 @@ export class ClaimList {
   protected changeFilter(value: string) {
     const status = this.statuses.find(option => option === value) ?? '';
     this.filter.set(status);
-  }
-
-  protected changePage(delta: number) {
-    this.page.update(value => value + delta);
   }
 
   protected async pickUp(claim: Claim) {

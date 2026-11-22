@@ -116,7 +116,7 @@ button:disabled { opacity: .56; cursor: default; }
 .state, .empty { padding: 2rem 1rem; text-align: center; color: var(--muted); }
 .empty { display: grid; justify-items: center; gap: .65rem; min-height: 160px; align-content: center; border-top: 1px solid var(--line); }
 .empty h3 { color: var(--ink); }
-.pagination { display: flex; align-items: center; justify-content: flex-end; gap: .7rem; padding: .65rem 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; font-weight: 800; }
+
 .back { margin-bottom: 1rem; }
 .detail-header { align-items: flex-end; }
 .detail-header .reference { margin-top: 0; margin-bottom: .25rem; }

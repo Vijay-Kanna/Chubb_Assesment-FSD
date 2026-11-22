@@ -83,3 +83,11 @@ Codex kept pickup in the staff table and added status tabs for both claims lists
 Codex made both UTC dates inclusive and tested a range that ends at the last instant of a day. It fixed a date label that could shift by a day across time zones and adjusted Angular's development bundling after the first export triggered a page reload. It added two fictional examples for the dashboard and verified that the existing SQLite database migrated successfully.
 
 Codex verified the tabs, dashboard links, searchable claim type and currency controls, and a 320-pixel layout in the browser. It filed and approved a fictional claim with different requested and approved amounts, checked the dashboard totals, and tested reversed dates and an empty result. It downloaded and visually checked the one-page filtered PDF. All 14 backend tests passed with Kafka. The Angular production build succeeded with CommonJS optimization warnings from the PDF package's dependencies, and npm audit found zero known vulnerabilities.
+
+## Pagination across the workspace
+
+I asked Codex to add missing pagination across the app, including staff and chat. Codex added a shared control with page counts and ten records per page for staff and claimant claims, the conversation list, messages, claim history, notifications, and the staff activity table in Reports. Changing the claim status resets the list to page one. PDF export includes all filtered staff rows.
+
+Codex kept the existing API array responses and used the total-count header when the app requests pagination. Chat starts with the latest messages and keeps older pages stable when a new reply arrives. It added a fictional conversation to the local demo and verified at 320 pixels that a live reply stays off the older page and appears when returning to the latest page.
+
+Codex verified two-page navigation in the queue, My Claims, notifications, chat, and claim history. It also checked the staff report controls and the API tests for authorization, message ordering, and notification pagination with Kafka. The Angular production build succeeded with the existing PDF dependency warnings.

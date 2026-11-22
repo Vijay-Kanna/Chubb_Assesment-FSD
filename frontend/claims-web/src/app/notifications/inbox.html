@@ -23,14 +23,10 @@
         <li class="empty"><span class="record-icon"><ng-icon name="lucideBell" /></span><h3>No notifications on this page</h3></li>
       }
     </ul>
-    @if (page() > 1 || notices.value().length === 50) {
-      <div class="pagination">
-        <button class="quiet" type="button" (click)="changePage(-1)" [disabled]="page() === 1">Previous</button>
-        <span>Page {{ page() }}</span>
-        <button class="quiet" type="button" (click)="changePage(1)" [disabled]="notices.value().length < 50 || page() === 10000">Next</button>
-      </div>
-    }
+
   } @else {
     <p class="state" role="status">Loading notifications…</p>
   }
+  <app-pagination label="Notification pages" [total]="total()" [page]="page()"
+    [loading]="notices.isLoading()" (pageChange)="page.set($event)" />
 </section>
