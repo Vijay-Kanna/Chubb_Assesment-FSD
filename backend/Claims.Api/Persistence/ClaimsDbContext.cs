@@ -1,4 +1,5 @@
 using Claims.Api.Domain;
+using Claims.Api.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -10,6 +11,7 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
     public DbSet<Claim> Claims => Set<Claim>();
     public DbSet<ClaimHistory> ClaimHistory => Set<ClaimHistory>();
     public DbSet<ClaimMessage> ClaimMessages => Set<ClaimMessage>();
+    public DbSet<ClaimNotificationOutbox> ClaimNotificationOutbox => Set<ClaimNotificationOutbox>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configuration)
     {
@@ -48,6 +50,12 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
             entry.HasOne<Claim>().WithMany().HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Restrict);
             entry.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
             entry.HasOne(x => x.ClaimMessage).WithMany().HasForeignKey(x => x.ClaimMessageId).OnDelete(DeleteBehavior.Restrict);
+        });
+        model.Entity<ClaimNotificationOutbox>(entry =>
+        {
+            entry.Property(x => x.Type).HasConversion<string>();
+            entry.HasIndex(x => x.EventId).IsUnique();
+            entry.HasIndex(x => new { x.PublishedAt, x.Id });
         });
     }
 

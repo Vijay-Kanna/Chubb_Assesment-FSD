@@ -1,6 +1,6 @@
 # Chubb Claims Fullstack Assessment
 
-The ASP.NET Core API supports JWT login and the claims workflow from intake through review and settlement or rejection. It uses EF Core with SQLite. Kafka notifications and the Angular app are later milestones.
+The .NET backend includes a Claims API for the claims workflow and a Notifications API for in-app notifications delivered over Kafka. Each service owns a SQLite database. The backend can be demonstrated over HTTP before adding Angular.
 
 ## Run locally
 
@@ -70,6 +70,32 @@ Pickup moves the claim from `Submitted` to `UnderReview`. A question moves it to
 
 The conversation is readable by the claimant who owns the claim and the assigned staff member. History records the actor, action, time, and status change, and links questions and replies to their message IDs. Staff can see unassigned claims and claims assigned to them. The list supports `status`, `assignedStaffId` (staff only), and `page` (50 results per page).
 
+## Run Kafka notifications
+
+Start Docker, then run these commands from the repository root in PowerShell:
+
+```powershell
+docker compose up -d --wait
+$env:Kafka__BootstrapServers = '127.0.0.1:9092'
+$env:Jwt__SigningKey = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:Demo__Password = [guid]::NewGuid().ToString('N')
+dotnet run --project backend/Claims.Api
+```
+
+In a second terminal, set `Kafka__BootstrapServers` and `Jwt__SigningKey` to the **same values** and run `dotnet run --project backend/Notifications.Api`. Use the same issuer and audience settings if you override them. If Windows requires the certificate setup above, apply it in both service terminals. Run the claims demo, then use the claimant's bearer token to read their notifications:
+
+```powershell
+Invoke-RestMethod -Uri 'https://localhost:7165/notifications' -Headers $claimant
+```
+
+Allow a few seconds for delivery. There is a notification for a staff question, approval, rejection, and settlement. The API returns only the signed-in claimant's notifications. The default database is `backend/Notifications.Api/notifications.db` and can be overridden with `ConnectionStrings__Notifications`.
+
+The Claims API stores each event in an outbox with the corresponding claim change. Its publisher retries pending events after broker failures. The Notifications API saves the notification before committing its Kafka offset. The event ID is the notification's primary key, so replay does not create another row. Kafka events carry identifiers, type, and timestamp. Claim descriptions and conversation text stay in the Claims API.
+
+The Compose broker listens on loopback for local development. Both APIs use a shared JWT signing key for this demo. `docker compose stop` stops the broker while retaining its local data.
+
 ## Verification
 
 Run `dotnet test` from the repository root. Integration tests use the HTTP pipeline and temporary SQLite databases. They cover login, validation, role and ownership checks, approval and settlement, rejection, invalid transitions, and competing pickups and questions. The claim version guards concurrent updates. EF Core commits each workflow change, history entry, and any related message together.
+
+With the Compose broker running, set `$env:KAFKA_TEST_BOOTSTRAP_SERVERS = '127.0.0.1:9092'` before running `dotnet test`. This enables the end-to-end Kafka test for questions, approval, rejection, settlement, replay, and claimant isolation. It uses a temporary topic and consumer group.

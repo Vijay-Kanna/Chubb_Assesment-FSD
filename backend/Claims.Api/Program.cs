@@ -5,6 +5,7 @@ using Claims.Api.Application;
 using Claims.Api.Auth;
 using Claims.Api.Domain;
 using Claims.Api.Endpoints;
+using Claims.Api.Messaging;
 using Claims.Api.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -28,6 +29,7 @@ builder.Services.AddSingleton<JwtTokens>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<ClaimsService>();
+builder.Services.AddHostedService<ClaimNotificationPublisher>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)

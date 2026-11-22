@@ -1,5 +1,7 @@
 using Claims.Api.Domain;
+using Claims.Api.Messaging;
 using Claims.Api.Persistence;
+using Claims.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Claims.Api.Application;
@@ -111,7 +113,30 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
             SentAt = now
         };
         AddHistory(claim, actorId, action, previousStatus, now, message);
+        QueueNotification(claim, action, now);
         return await SaveChangeAsync(claim, cancellationToken);
+    }
+
+    private void QueueNotification(Claim claim, ClaimAction action, DateTime now)
+    {
+        ClaimNotificationType? type = action switch
+        {
+            ClaimAction.QuestionAsked => ClaimNotificationType.QuestionAsked,
+            ClaimAction.Approved => ClaimNotificationType.Approved,
+            ClaimAction.Rejected => ClaimNotificationType.Rejected,
+            ClaimAction.Settled => ClaimNotificationType.Settled,
+            _ => null
+        };
+        if (type is not null)
+        {
+            db.ClaimNotificationOutbox.Add(new ClaimNotificationOutbox
+            {
+                ClaimId = claim.Id,
+                RecipientUserId = claim.ClaimantId,
+                Type = type.Value,
+                OccurredAt = now
+            });
+        }
     }
 
     private async Task<ClaimChange> SaveChangeAsync(Claim claim, CancellationToken cancellationToken)

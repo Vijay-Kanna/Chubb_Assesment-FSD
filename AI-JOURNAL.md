@@ -21,3 +21,11 @@ I asked Codex to add staff questions, claimant replies, approval or rejection, a
 Codex implemented the reviewed design with a separate conversation record and audit history. The assigned staff member can ask a question, the claim owner can reply, and each action moves the claim to the next allowed status. Approval and settlement are separate actions. Each question or reply is committed with the status change and a history entry that links to the message.
 
 The generated SQLite migration initially needed to rebuild the history table. Codex revised it to add the nullable message reference in place. Ten integration tests passed, including permission checks, both decision paths, and a concurrent question test. Codex also ran both decision paths over local HTTPS on an upgraded copy of the first milestone's database and verified that the original claim and history were preserved.
+
+## Kafka notifications
+
+I asked Codex to add `Notifications.Api` and its Kafka consumer, verify that a staff question or decision reaches the correct claimant, update this journal, and commit the milestone.
+
+Codex implemented the transactional outbox from the reviewed design. The Claims API commits each event with the claim change. Its worker publishes pending events to Kafka. The Notifications API saves each notification before committing the offset. Codex used the event ID as the notification's primary key so a replay cannot create a duplicate. The services share a JWT signing key for the local demo, and the notifications endpoint derives the recipient from the validated token.
+
+Codex ran 12 passing tests with a real local Kafka broker, covering question, approval, rejection, and settlement notifications, recipient isolation, and replay of the original question event. It also checked the NuGet dependencies against the configured advisory source.

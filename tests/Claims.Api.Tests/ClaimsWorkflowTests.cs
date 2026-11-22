@@ -317,6 +317,7 @@ public sealed class ClaimsApiFactory : WebApplicationFactory<Program>
 {
     internal const string DemoPassword = "Fixture credential only 2026!";
     private readonly string database = Path.Combine(Path.GetTempPath(), $"chubb-claims-{Guid.NewGuid():N}.db");
+    internal Dictionary<string, string?> Settings { get; init; } = [];
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -325,7 +326,7 @@ public sealed class ClaimsApiFactory : WebApplicationFactory<Program>
         {
             ["ConnectionStrings:Claims"] = $"Data Source={database};Pooling=False",
             ["Demo:Password"] = DemoPassword
-        }));
+        }).AddInMemoryCollection(Settings));
     }
 
     public override async ValueTask DisposeAsync()

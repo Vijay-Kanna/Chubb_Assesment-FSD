@@ -184,6 +184,41 @@ namespace Claims.Api.Persistence.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Claims.Api.Messaging.ClaimNotificationOutbox", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RecipientUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("PublishedAt", "Id");
+
+                    b.ToTable("ClaimNotificationOutbox");
+                });
+
             modelBuilder.Entity("Claims.Api.Domain.Claim", b =>
                 {
                     b.HasOne("Claims.Api.Domain.User", null)

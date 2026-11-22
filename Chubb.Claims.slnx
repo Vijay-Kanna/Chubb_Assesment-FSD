@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/backend/">
     <Project Path="backend/Claims.Api/Claims.Api.csproj" />
+    <Project Path="backend/Claims.Contracts/Claims.Contracts.csproj" />
+    <Project Path="backend/Notifications.Api/Notifications.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Claims.Api.Tests/Claims.Api.Tests.csproj" />
