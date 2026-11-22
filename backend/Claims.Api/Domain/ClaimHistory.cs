@@ -1,6 +1,6 @@
 namespace Claims.Api.Domain;
 
-public enum ClaimAction { Submitted, Assigned }
+public enum ClaimAction { Submitted, Assigned, QuestionAsked, ReplyReceived, Approved, Rejected, Settled }
 
 public sealed class ClaimHistory
 {
@@ -11,4 +11,6 @@ public sealed class ClaimHistory
     public ClaimStatus? PreviousStatus { get; init; }
     public required ClaimStatus NewStatus { get; init; }
     public required DateTime OccurredAt { get; init; }
+    public ClaimMessage? ClaimMessage { get; init; }
+    public long? ClaimMessageId { get; private set; }
 }

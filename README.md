@@ -1,6 +1,6 @@
 # Chubb Claims Fullstack Assessment
 
-The first milestone is an ASP.NET Core API for JWT login, claim submission and tracking, and staff pickup. It uses EF Core with SQLite. The longer review workflow, Kafka notification service, and Angular app are later milestones.
+The ASP.NET Core API supports JWT login and the claims workflow from intake through review and settlement or rejection. It uses EF Core with SQLite. Kafka notifications and the Angular app are later milestones.
 
 ## Run locally
 
@@ -53,12 +53,23 @@ $id = $claim.id
 Invoke-RestMethod -Uri "$base/claims/${id}" -Headers $claimant
 Invoke-RestMethod -Uri "$base/claims?status=Submitted" -Headers $staff
 Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/pick-up" -Headers $staff
+
+$question = @{ body = 'Where was the car parked?' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/questions" -Headers $staff -ContentType 'application/json' -Body $question
+$reply = @{ body = 'Outside my home.' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/replies" -Headers $claimant -ContentType 'application/json' -Body $reply
+Invoke-RestMethod -Uri "$base/claims/${id}/messages" -Headers $claimant
+
+Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/approve" -Headers $staff
+Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/settle" -Headers $staff
 Invoke-RestMethod -Uri "$base/claims/${id}" -Headers $claimant
 Invoke-RestMethod -Uri "$base/claims/${id}/history" -Headers $claimant
 ```
 
-The claimant first sees `Submitted`, then `UnderReview` after pickup. History records submission and assignment. Staff can see unassigned claims and claims assigned to them. The list supports `status`, `assignedStaffId` (staff only), and `page` (50 results per page).
+Pickup moves the claim from `Submitted` to `UnderReview`. A question moves it to `AwaitingInformation` and the owner's reply returns it to `UnderReview`. The cycle can repeat. To demo rejection, create another claim and call `/reject` while it is under review. Approval and settlement are separate actions. Settlement records the outcome of the claim in the API.
+
+The conversation is readable by the claimant who owns the claim and the assigned staff member. History records the actor, action, time, and status change, and links questions and replies to their message IDs. Staff can see unassigned claims and claims assigned to them. The list supports `status`, `assignedStaffId` (staff only), and `page` (50 results per page).
 
 ## Verification
 
-Run `dotnet test` from the repository root. Integration tests use the HTTP pipeline and temporary SQLite databases. They cover login, JWT rejection, role and claim ownership checks, claim validation, competing pickups, and history. Pickup uses optimistic concurrency so only one request can assign the claim. EF Core commits the status and history entry together.
+Run `dotnet test` from the repository root. Integration tests use the HTTP pipeline and temporary SQLite databases. They cover login, validation, role and ownership checks, approval and settlement, rejection, invalid transitions, and competing pickups and questions. The claim version guards concurrent updates. EF Core commits each workflow change, history entry, and any related message together.

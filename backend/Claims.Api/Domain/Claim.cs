@@ -1,6 +1,6 @@
 namespace Claims.Api.Domain;
 
-public enum ClaimStatus { Submitted, UnderReview }
+public enum ClaimStatus { Submitted, UnderReview, AwaitingInformation, Approved, Rejected, Settled }
 public enum ClaimType { Motor, Property }
 
 public sealed class Claim
@@ -37,9 +37,33 @@ public sealed class Claim
             return false;
 
         AssignedStaffId = staffId;
-        Status = ClaimStatus.UnderReview;
+        MoveTo(ClaimStatus.UnderReview, now);
+        return true;
+    }
+
+    public bool TryAskQuestion(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.AwaitingInformation, now);
+
+    public bool TryReply(DateTime now) => TryMove(ClaimStatus.AwaitingInformation, ClaimStatus.UnderReview, now);
+
+    public bool TryApprove(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.Approved, now);
+
+    public bool TryReject(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.Rejected, now);
+
+    public bool TrySettle(DateTime now) => TryMove(ClaimStatus.Approved, ClaimStatus.Settled, now);
+
+    private bool TryMove(ClaimStatus requiredStatus, ClaimStatus nextStatus, DateTime now)
+    {
+        if (Status != requiredStatus)
+            return false;
+
+        MoveTo(nextStatus, now);
+        return true;
+    }
+
+    private void MoveTo(ClaimStatus status, DateTime now)
+    {
+        Status = status;
         UpdatedAt = now;
         Version++;
-        return true;
     }
 }

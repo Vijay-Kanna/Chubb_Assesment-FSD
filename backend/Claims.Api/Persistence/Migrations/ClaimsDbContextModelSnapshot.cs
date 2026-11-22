@@ -79,6 +79,9 @@ namespace Claims.Api.Persistence.Migrations
                     b.Property<Guid>("ClaimId")
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("ClaimMessageId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("NewStatus")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -95,7 +98,38 @@ namespace Claims.Api.Persistence.Migrations
 
                     b.HasIndex("ClaimId");
 
+                    b.HasIndex("ClaimMessageId");
+
                     b.ToTable("ClaimHistory");
+                });
+
+            modelBuilder.Entity("Claims.Api.Domain.ClaimMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SenderUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.HasIndex("ClaimId", "Id");
+
+                    b.ToTable("ClaimMessages");
                 });
 
             modelBuilder.Entity("Claims.Api.Domain.Role", b =>
@@ -175,6 +209,28 @@ namespace Claims.Api.Persistence.Migrations
                     b.HasOne("Claims.Api.Domain.Claim", null)
                         .WithMany()
                         .HasForeignKey("ClaimId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Claims.Api.Domain.ClaimMessage", "ClaimMessage")
+                        .WithMany()
+                        .HasForeignKey("ClaimMessageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ClaimMessage");
+                });
+
+            modelBuilder.Entity("Claims.Api.Domain.ClaimMessage", b =>
+                {
+                    b.HasOne("Claims.Api.Domain.Claim", null)
+                        .WithMany()
+                        .HasForeignKey("ClaimId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Claims.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

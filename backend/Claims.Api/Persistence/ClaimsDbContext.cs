@@ -9,6 +9,7 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
     public DbSet<User> Users => Set<User>();
     public DbSet<Claim> Claims => Set<Claim>();
     public DbSet<ClaimHistory> ClaimHistory => Set<ClaimHistory>();
+    public DbSet<ClaimMessage> ClaimMessages => Set<ClaimMessage>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configuration)
     {
@@ -32,6 +33,13 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
             claim.HasOne<User>().WithMany().HasForeignKey(x => x.AssignedStaffId).OnDelete(DeleteBehavior.Restrict);
             claim.HasIndex(x => new { x.AssignedStaffId, x.Status });
         });
+        model.Entity<ClaimMessage>(message =>
+        {
+            message.Property(x => x.Body).HasMaxLength(ClaimMessage.MaxBodyLength);
+            message.HasOne<Claim>().WithMany().HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Restrict);
+            message.HasOne<User>().WithMany().HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Restrict);
+            message.HasIndex(x => new { x.ClaimId, x.Id });
+        });
         model.Entity<ClaimHistory>(entry =>
         {
             entry.Property(x => x.Action).HasConversion<string>();
@@ -39,6 +47,7 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
             entry.Property(x => x.NewStatus).HasConversion<string>();
             entry.HasOne<Claim>().WithMany().HasForeignKey(x => x.ClaimId).OnDelete(DeleteBehavior.Restrict);
             entry.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+            entry.HasOne(x => x.ClaimMessage).WithMany().HasForeignKey(x => x.ClaimMessageId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 

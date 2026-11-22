@@ -13,3 +13,11 @@ I asked Codex to build login, roles, claim submission, claimant access to their 
 Codex generated the .NET API, SQLite migration, HTTP integration tests, and demo steps. It used a development-only seed with a password supplied at runtime and an ephemeral development JWT key. It implemented an optimistic concurrency check for pickup and saved claim updates with their audit entries. The tests check that competing staff requests produce one assignment and that access respects roles and claim ownership.
 
 Codex ran six passing integration tests and exercised the login, submission, queue, pickup, claimant status, and history endpoints on the local HTTPS server. It found that Kestrel initially selected an untrusted localhost certificate on this machine. It selected the existing trusted certificate from the user store and documented that setup in the README. The NuGet advisory check reported no known vulnerable packages for the configured source.
+
+## Claim conversation and decisions
+
+I asked Codex to add staff questions, claimant replies, approval or rejection, and claim history. I specifically asked it to verify the full workflow and make sure users can access only claims they are authorized to see.
+
+Codex implemented the reviewed design with a separate conversation record and audit history. The assigned staff member can ask a question, the claim owner can reply, and each action moves the claim to the next allowed status. Approval and settlement are separate actions. Each question or reply is committed with the status change and a history entry that links to the message.
+
+The generated SQLite migration initially needed to rebuild the history table. Codex revised it to add the nullable message reference in place. Ten integration tests passed, including permission checks, both decision paths, and a concurrent question test. Codex also ran both decision paths over local HTTPS on an upgraded copy of the first milestone's database and verified that the original claim and history were preserved.

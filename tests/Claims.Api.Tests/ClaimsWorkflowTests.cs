@@ -138,6 +138,140 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         Assert.True(errors.TryGetProperty("description", out _));
     }
 
+    [Fact]
+    public async Task Assigned_staff_can_review_a_conversation_approve_then_record_settlement()
+    {
+        var claimant = await Token("claimant");
+        var staff = await Token("staff");
+        var path = $"/claims/{await Submit(claimant)}";
+        var submitted = await CheckStatus(HttpMethod.Post, $"{path}/pick-up", staff, "UnderReview");
+        var staffId = submitted.GetProperty("assignedStaffId").GetGuid();
+        var claimantId = submitted.GetProperty("claimantId").GetGuid();
+
+        await CheckStatus(HttpMethod.Post, $"{path}/questions", staff, "AwaitingInformation", "Where was the car parked?");
+        await CheckStatus(HttpMethod.Get, path, claimant, "AwaitingInformation");
+        await CheckStatus(HttpMethod.Post, $"{path}/replies", claimant, "UnderReview", "Outside my home.");
+        await CheckStatus(HttpMethod.Post, $"{path}/questions", staff, "AwaitingInformation", "When did you notice the damage?");
+        await CheckStatus(HttpMethod.Post, $"{path}/replies", claimant, "UnderReview", "The following morning.");
+        await CheckStatus(HttpMethod.Post, $"{path}/approve", staff, "Approved");
+        await CheckStatus(HttpMethod.Get, path, claimant, "Approved");
+        await CheckStatus(HttpMethod.Post, $"{path}/settle", staff, "Settled");
+        await CheckStatus(HttpMethod.Get, path, claimant, "Settled");
+
+        using var messages = await Request(HttpMethod.Get, $"{path}/messages", claimant);
+        Assert.Equal(HttpStatusCode.OK, messages.StatusCode);
+        var conversation = (await Read(messages)).EnumerateArray().ToArray();
+        Assert.Equal(
+            ["Where was the car parked?", "Outside my home.", "When did you notice the damage?", "The following morning."],
+            conversation.Select(message => message.GetProperty("body").GetString()));
+        Assert.Equal([staffId, claimantId, staffId, claimantId],
+            conversation.Select(message => message.GetProperty("senderUserId").GetGuid()));
+
+        using var history = await Request(HttpMethod.Get, $"{path}/history", staff);
+        Assert.Equal(HttpStatusCode.OK, history.StatusCode);
+        var entries = (await Read(history)).EnumerateArray().ToArray();
+        Assert.Equal(
+            ["Submitted", "Assigned", "QuestionAsked", "ReplyReceived", "QuestionAsked", "ReplyReceived", "Approved", "Settled"],
+            entries.Select(entry => entry.GetProperty("action").GetString()));
+        Assert.Equal(conversation.Select(message => message.GetProperty("id").GetInt64()),
+            entries[2..6].Select(entry => entry.GetProperty("claimMessageId").GetInt64()));
+        Assert.Equal("Approved", entries[^1].GetProperty("previousStatus").GetString());
+        Assert.Equal("Settled", entries[^1].GetProperty("newStatus").GetString());
+    }
+
+    [Fact]
+    public async Task Workflow_rejects_invalid_transitions_without_recording_them()
+    {
+        var claimant = await Token("claimant");
+        var staff = await Token("staff");
+        var path = $"/claims/{await Submit(claimant)}";
+        await CheckStatus(HttpMethod.Post, $"{path}/pick-up", staff, "UnderReview");
+        await ExpectStatus(HttpMethod.Post, $"{path}/settle", staff, HttpStatusCode.Conflict);
+        await ExpectStatus(HttpMethod.Post, $"{path}/replies", claimant, HttpStatusCode.Conflict, new { body = "An unsolicited reply" });
+        await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.BadRequest, new { body = " " });
+        await CheckStatus(HttpMethod.Post, $"{path}/questions", staff, "AwaitingInformation", "Is there a witness?");
+        await ExpectStatus(HttpMethod.Post, $"{path}/approve", staff, HttpStatusCode.Conflict);
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", staff, HttpStatusCode.Conflict);
+        await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.Conflict, new { body = "A second outstanding question" });
+        await CheckStatus(HttpMethod.Post, $"{path}/replies", claimant, "UnderReview", "No witness.");
+        await CheckStatus(HttpMethod.Post, $"{path}/reject", staff, "Rejected");
+        await ExpectStatus(HttpMethod.Post, $"{path}/settle", staff, HttpStatusCode.Conflict);
+        await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.Conflict, new { body = "A late question" });
+        await CheckStatus(HttpMethod.Get, path, claimant, "Rejected");
+
+        using var history = await Request(HttpMethod.Get, $"{path}/history", claimant);
+        Assert.Equal(["Submitted", "Assigned", "QuestionAsked", "ReplyReceived", "Rejected"],
+            (await Read(history)).EnumerateArray().Select(entry => entry.GetProperty("action").GetString()));
+    }
+
+    [Fact]
+    public async Task Review_actions_and_messages_are_restricted_to_the_assigned_staff_and_owner()
+    {
+        var claimant = await Token("claimant");
+        var otherClaimant = await Token("other-claimant");
+        var staff = await Token("staff");
+        var otherStaff = await Token("other-staff");
+        var path = $"/claims/{await Submit(claimant)}";
+        var message = new { body = "What was damaged?" };
+
+        await ExpectStatus(HttpMethod.Get, $"{path}/messages", staff, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.NotFound, message);
+        await CheckStatus(HttpMethod.Post, $"{path}/pick-up", staff, "UnderReview");
+        await CheckStatus(HttpMethod.Post, $"{path}/questions", staff, "AwaitingInformation", message.body);
+        await ExpectStatus(HttpMethod.Get, $"{path}/messages", otherStaff, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Get, $"{path}/messages", otherClaimant, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Get, $"{path}/history", otherStaff, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Post, $"{path}/questions", otherStaff, HttpStatusCode.NotFound, message);
+        await ExpectStatus(HttpMethod.Post, $"{path}/questions", claimant, HttpStatusCode.Forbidden, message);
+        await ExpectStatus(HttpMethod.Post, $"{path}/replies", otherClaimant, HttpStatusCode.NotFound, message);
+        await ExpectStatus(HttpMethod.Post, $"{path}/replies", staff, HttpStatusCode.Forbidden, message);
+        await CheckStatus(HttpMethod.Post, $"{path}/replies", claimant, "UnderReview", "The bumper.");
+        await ExpectStatus(HttpMethod.Post, $"{path}/approve", otherStaff, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", otherStaff, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Post, $"{path}/approve", claimant, HttpStatusCode.Forbidden);
+        await CheckStatus(HttpMethod.Post, $"{path}/approve", staff, "Approved");
+        await ExpectStatus(HttpMethod.Post, $"{path}/settle", otherStaff, HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Competing_questions_leave_only_the_winning_message_and_history()
+    {
+        var claimant = await Token("claimant");
+        var staff = await Token("staff");
+        var path = $"/claims/{await Submit(claimant)}";
+        await CheckStatus(HttpMethod.Post, $"{path}/pick-up", staff, "UnderReview");
+
+        var responses = await Task.WhenAll(
+            Request(HttpMethod.Post, $"{path}/questions", staff, new { body = "First question" }),
+            Request(HttpMethod.Post, $"{path}/questions", staff, new { body = "Second question" }));
+        using var first = responses[0];
+        using var second = responses[1];
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.Conflict], responses.Select(response => response.StatusCode).Order());
+
+        using var messages = await Request(HttpMethod.Get, $"{path}/messages", claimant);
+        var message = Assert.Single((await Read(messages)).EnumerateArray());
+        Assert.Equal(first.IsSuccessStatusCode ? "First question" : "Second question", message.GetProperty("body").GetString());
+        using var history = await Request(HttpMethod.Get, $"{path}/history", claimant);
+        var entry = Assert.Single((await Read(history)).EnumerateArray(), eventEntry =>
+            eventEntry.GetProperty("action").GetString() == "QuestionAsked");
+        Assert.Equal(message.GetProperty("id").GetInt64(), entry.GetProperty("claimMessageId").GetInt64());
+    }
+
+    private async Task<JsonElement> CheckStatus(HttpMethod method, string path, string token, string expected, string? message = null)
+    {
+        using var response = await Request(method, path, token, message is null ? null : new { body = message });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await Read(response);
+        Assert.Equal(expected, result.GetProperty("status").GetString());
+        return result;
+    }
+
+    private async Task ExpectStatus(HttpMethod method, string path, string token, HttpStatusCode expected, object? body = null)
+    {
+        using var response = await Request(method, path, token, body);
+        Assert.Equal(expected, response.StatusCode);
+    }
+
     private async Task<Guid> Submit(string token)
     {
         using var response = await Request(HttpMethod.Post, "/claims", token, ValidClaim());

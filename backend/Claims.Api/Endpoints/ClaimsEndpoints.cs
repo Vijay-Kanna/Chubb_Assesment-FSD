@@ -17,8 +17,14 @@ internal static class ClaimsEndpoints
         claims.MapGet("", List).Produces<ClaimView[]>().ProducesValidationProblem();
         claims.MapGet("/{id:guid}", Get).Produces<ClaimView>().Produces(StatusCodes.Status404NotFound);
         claims.MapGet("/{id:guid}/history", History).Produces<HistoryView[]>().Produces(StatusCodes.Status404NotFound);
+        claims.MapGet("/{id:guid}/messages", Messages).Produces<ClaimMessageView[]>().Produces(StatusCodes.Status404NotFound);
         claims.MapPost("/{id:guid}/pick-up", PickUp).RequireAuthorization(Role.ClaimsStaff)
             .Produces<ClaimView>().Produces(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        MapReviewMessage(claims, "/{id:guid}/questions", Role.ClaimsStaff, ClaimAction.QuestionAsked);
+        MapReviewMessage(claims, "/{id:guid}/replies", Role.Claimant, ClaimAction.ReplyReceived);
+        MapReviewAction(claims, "/{id:guid}/approve", ClaimAction.Approved);
+        MapReviewAction(claims, "/{id:guid}/reject", ClaimAction.Rejected);
+        MapReviewAction(claims, "/{id:guid}/settle", ClaimAction.Settled);
     }
 
     private static async Task<IResult> Submit(SubmitClaim request, ClaimsPrincipal user, ClaimsService service,
@@ -73,16 +79,58 @@ internal static class ClaimsEndpoints
     private static async Task<IResult> PickUp(Guid id, ClaimsPrincipal user, ClaimsService service,
         CancellationToken cancellationToken)
     {
-        var (outcome, claim) = await service.PickUpAsync(id, UserId(user), cancellationToken);
-        return outcome switch
-        {
-            PickupOutcome.Assigned => Results.Ok(claim),
-            PickupOutcome.NotFound => Results.NotFound(),
-            _ => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Claim is no longer available for pickup.")
-        };
+        var change = await service.PickUpAsync(id, UserId(user), cancellationToken);
+        return ChangeResult(change, "Claim is no longer available for pickup.");
     }
+
+    private static async Task<IResult> Messages(Guid id, ClaimsPrincipal user, ClaimsService service,
+        CancellationToken cancellationToken)
+    {
+        var messages = await service.MessagesAsync(id, UserId(user), user.IsInRole(Role.ClaimsStaff), cancellationToken);
+        return messages is null ? Results.NotFound() : Results.Ok(messages);
+    }
+
+    private static void MapReviewMessage(RouteGroupBuilder claims, string route, string role, ClaimAction action)
+    {
+        claims.MapPost(route, async (Guid id, ReviewMessage request, ClaimsPrincipal user, ClaimsService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Body) || request.Body.Length > ClaimMessage.MaxBodyLength)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["body"] = [$"Enter a message of up to {ClaimMessage.MaxBodyLength} characters."]
+                });
+            }
+
+            var change = await service.ReviewAsync(id, UserId(user), action, request.Body.Trim(), cancellationToken);
+            return ChangeResult(change, ReviewConflict);
+        }).RequireAuthorization(role).Produces<ClaimView>().ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static void MapReviewAction(RouteGroupBuilder claims, string route, ClaimAction action)
+    {
+        claims.MapPost(route, async (Guid id, ClaimsPrincipal user, ClaimsService service,
+            CancellationToken cancellationToken) =>
+        {
+            var change = await service.ReviewAsync(id, UserId(user), action, body: null, cancellationToken);
+            return ChangeResult(change, ReviewConflict);
+        }).RequireAuthorization(Role.ClaimsStaff).Produces<ClaimView>()
+            .Produces(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private const string ReviewConflict = "This action is unavailable for the current claim status.";
+
+    private static IResult ChangeResult(ClaimChange change, string conflictTitle) => change.Outcome switch
+    {
+        ClaimChangeOutcome.Changed => Results.Ok(change.Claim),
+        ClaimChangeOutcome.NotFound => Results.NotFound(),
+        _ => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: conflictTitle)
+    };
 
     private static Guid UserId(ClaimsPrincipal user) => Guid.Parse(user.FindFirstValue(JwtRegisteredClaimNames.Sub)!);
 
     private sealed record SubmitClaim(ClaimType? Type, DateOnly? IncidentDate, string? Description);
+    private sealed record ReviewMessage(string? Body);
 }
