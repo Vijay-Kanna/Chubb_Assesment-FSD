@@ -65,3 +65,5 @@ I asked Codex to replace manual refresh with SignalR for messaging, the queue, a
 Codex kept REST for reading and writing authorized claim data. SignalR carries a change signal so open pages fetch the latest state. Kafka still delivers events to the Notifications API. Codex reused the claim version check to enforce one successful pickup and added clear messages for a stale pickup attempt and for a staff member whose open claim is no longer available.
 
 Codex ran 14 passing backend tests with Kafka and tested three staff sessions and a claimant in the browser. The queue updated when a claim arrived and when it was picked up. A competing staff member could not reopen it, and a stale pickup received a `409 Conflict`. The staff question, claimant reply, and approval notification appeared without a refresh.
+
+I confirmed that the conversation should stay separate from claim history because claimants and staff need to read the full exchange in one place. The history records who sent a question or reply and when. Codex verified that the claimant and the assigned staff member could read both views and that unrelated users were denied access.
