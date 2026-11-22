@@ -3,12 +3,14 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading.Channels;
 using Claims.Api.Persistence;
 using Claims.Contracts;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,12 +72,21 @@ public sealed class NotificationDeliveryTests
             var claimant = await Login(claims, "claimant");
             var staff = await Login(claims, "staff");
             var other = await Login(claims, "other-claimant");
+            await using var claimantHub = RealtimeConnection.Create(notificationsHost.Server, "/hubs/notifications", claimant);
+            await using var otherHub = RealtimeConnection.Create(notificationsHost.Server, "/hubs/notifications", other);
+            var liveNotices = Channel.CreateUnbounded<bool>();
+            var otherNotices = Channel.CreateUnbounded<bool>();
+            using var claimantListener = claimantHub.On("NotificationsChanged", () => { liveNotices.Writer.TryWrite(true); });
+            using var otherListener = otherHub.On("NotificationsChanged", () => { otherNotices.Writer.TryWrite(true); });
+            using var liveTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await Task.WhenAll(claimantHub.StartAsync(liveTimeout.Token), otherHub.StartAsync(liveTimeout.Token));
             var claim = await Submit(claims, claimant);
             var id = claim.GetProperty("id").GetGuid();
             var path = $"/claims/{id:D}";
 
             await Post(claims, $"{path}/pick-up", staff);
             await Post(claims, $"{path}/questions", staff, new { body = "Where was the car parked?" });
+            await liveNotices.Reader.ReadAsync(liveTimeout.Token);
             await Post(claims, $"{path}/replies", claimant, new { body = "Outside my home." });
             await Post(claims, $"{path}/approve", staff);
 
@@ -116,6 +127,7 @@ public sealed class NotificationDeliveryTests
             Assert.Equal("Your claim was rejected.", rejected.GetProperty("message").GetString());
             Assert.DoesNotContain(reason, rejected.GetRawText(), StringComparison.Ordinal);
             Assert.Empty(await List(notifications, other));
+            Assert.False(otherNotices.Reader.TryRead(out _));
         }
         finally
         {

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Claims.Contracts\Claims.Contracts.csproj" />
     <Compile Include="..\ApiDocumentation\SwaggerDocumentation.cs" Link="ApiDocumentation\SwaggerDocumentation.cs" />
+    <Compile Include="..\Realtime\RealtimeAuthentication.cs" Link="Realtime\RealtimeAuthentication.cs" />
   </ItemGroup>
 
 </Project>

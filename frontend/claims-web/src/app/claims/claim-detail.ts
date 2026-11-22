@@ -1,16 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { httpResource } from '@angular/common/http';
+import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { form, FormField, maxLength, required, submit } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
-  lucideMail, lucideMessageCircle, lucidePhone, lucideRefreshCw, lucideSend,
+  lucideMail, lucideMessageCircle, lucidePhone, lucideSend,
 } from '@ng-icons/lucide';
 import { Claim, ClaimMessage, HistoryEntry, ReviewAction, claimReference, claimUrl, historyLabels } from '../core/claims';
 import { ClaimsClient, errorMessage } from '../core/api';
 import { Session } from '../core/session';
+import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 import { StatusPill } from './status-pill';
 import { ClaimExposure } from './claim-exposure';
 
@@ -26,13 +27,16 @@ type Decision = keyof typeof decisionLabels;
   imports: [DatePipe, RouterLink, FormField, NgIcon, StatusPill, ClaimExposure],
   viewProviders: [provideIcons({
     lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
-    lucideMail, lucideMessageCircle, lucidePhone, lucideRefreshCw, lucideSend,
+    lucideMail, lucideMessageCircle, lucidePhone, lucideSend,
   })],
   templateUrl: './claim-detail.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClaimDetail {
   private readonly client = inject(ClaimsClient);
+  private readonly live = inject(LiveUpdates);
+  private readonly localRevision = signal(0);
+  private readonly version = computed(() => this.live.claimsVersion() + this.localRevision());
   readonly id = input<string>();
   protected readonly session = inject(Session);
   protected readonly reference = claimReference;
@@ -77,7 +81,13 @@ export class ClaimDetail {
       ? this.isAssigned() && this.claim.value().status === 'UnderReview'
       : this.claim.value().status === 'AwaitingInformation'
   ));
-  protected readonly loadError = computed(() => errorMessage(this.claim.error(), 'Could not load this claim.'));
+  protected readonly noLongerAvailable = computed(() => {
+    const error = this.claim.error();
+    return this.session.isStaff() && error instanceof HttpErrorResponse && error.status === 404;
+  });
+  protected readonly loadError = computed(() => this.error() || (this.noLongerAvailable()
+    ? 'This claim is no longer available to you. Another staff member may have picked it up.'
+    : errorMessage(this.claim.error(), 'Could not load this claim.')));
   protected readonly stages = ['Submitted', 'In review', 'Decision', 'Settled'];
   protected readonly stage = computed(() => {
     if (!this.claim.hasValue()) return 0;
@@ -91,11 +101,15 @@ export class ClaimDetail {
     }
   });
 
+  constructor() {
+    reloadOnLiveUpdate(this.claim, this.version);
+    reloadOnLiveUpdate(this.messages, this.version);
+    reloadOnLiveUpdate(this.history, this.version);
+  }
+
   protected refresh() {
     this.pendingDecision.set(null);
-    this.claim.reload();
-    this.messages.reload();
-    this.history.reload();
+    this.localRevision.update(value => value + 1);
   }
 
   protected async change(action: ReviewAction, body?: string) {
@@ -105,11 +119,9 @@ export class ClaimDetail {
     this.error.set('');
     this.feedback.set('');
     try {
-      const updated = await this.client.review(id, action, body);
+      await this.client.review(id, action, body);
       if (this.id() === id) {
-        this.claim.set(updated);
-        this.messages.reload();
-        this.history.reload();
+        this.localRevision.update(value => value + 1);
         this.pendingDecision.set(null);
         if (action === 'questions' || action === 'replies') this.draft.set({ body: '' });
         if (action === 'reject' || action === 'rejection-reason') this.rejectionDraft.set({ reason: '' });
@@ -117,7 +129,9 @@ export class ClaimDetail {
       }
     } catch (error) {
       if (this.id() === id) {
-        this.error.set(errorMessage(error, 'Could not update this claim.'));
+        this.error.set(action === 'pick-up' && error instanceof HttpErrorResponse && error.status === 409
+          ? 'Another staff member has already picked up this claim. Return to the queue to choose another claim.'
+          : errorMessage(error, 'Could not update this claim.'));
         this.refresh();
       }
     } finally {

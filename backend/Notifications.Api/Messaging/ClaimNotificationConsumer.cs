@@ -1,13 +1,14 @@
 using System.Text.Json;
 using Claims.Contracts;
 using Confluent.Kafka;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.Sqlite;
 using Notifications.Api.Persistence;
 
 namespace Notifications.Api.Messaging;
 
 internal sealed class ClaimNotificationConsumer(IServiceScopeFactory scopes, IConfiguration configuration,
-    ILogger<ClaimNotificationConsumer> logger) : BackgroundService
+    IHubContext<NotificationsHub> hub, ILogger<ClaimNotificationConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -58,7 +59,8 @@ internal sealed class ClaimNotificationConsumer(IServiceScopeFactory scopes, ICo
                 {
                     await using var scope = scopes.CreateAsyncScope();
                     var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-                    await db.StoreAsync(notification, cancellationToken);
+                    if (await db.StoreAsync(notification, cancellationToken) > 0)
+                        await PublishAsync(notification.RecipientUserId);
                 }
 
                 consumer.Commit(record);
@@ -67,6 +69,18 @@ internal sealed class ClaimNotificationConsumer(IServiceScopeFactory scopes, ICo
         finally
         {
             consumer.Close();
+        }
+    }
+
+    private async Task PublishAsync(Guid userId)
+    {
+        try
+        {
+            await hub.Clients.User(userId.ToString("D")).SendAsync("NotificationsChanged");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Could not send a live notification update ({ErrorType}).", exception.GetType().Name);
         }
     }
 

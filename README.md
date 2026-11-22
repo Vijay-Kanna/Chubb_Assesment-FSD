@@ -1,6 +1,6 @@
 # Chubb Claims Fullstack Assessment
 
-The Angular workspace serves claimants and claims staff. The .NET Claims API owns the claims workflow, and the Notifications API delivers in-app notifications over Kafka. Each service owns a SQLite database. You can also demonstrate the backend directly over HTTP.
+The Angular workspace serves claimants and claims staff. The .NET Claims API owns the claims workflow, and the Notifications API consumes claim events from Kafka. SignalR keeps open views up to date. Each service owns a SQLite database. You can also demonstrate the backend directly over HTTP.
 
 ## Run locally
 
@@ -18,7 +18,7 @@ Open `https://localhost:7164/swagger/` to explore the Claims API. SQLite migrati
 | Account | Role |
 | --- | --- |
 | `claimant@example.test` and `other-claimant@example.test` | Claimant |
-| `staff@example.test` and `other-staff@example.test` | ClaimsStaff |
+| `staff@example.test`, `other-staff@example.test`, and `third-staff@example.test` | ClaimsStaff |
 
 The default database is `backend/Claims.Api/claims.db`. Override it with `ConnectionStrings__Claims`. The development JWT key is random per process by default, so restarting invalidates outstanding tokens. Set a Base64-encoded random key of at least 32 bytes in `Jwt__SigningKey` to keep tokens valid across restarts. Outside Development, the API requires a configured key and does not seed demo accounts.
 
@@ -124,9 +124,13 @@ $trusted = Get-ChildItem -LiteralPath 'Cert:\CurrentUser\Root' | Where-Object {
 }) -join [Environment]::NewLine))
 ```
 
-Open [Claims Workspace](http://127.0.0.1:4200/). Sign in as the demo claimant and submit a claim. In a second tab, sign in as staff, open the claim from the queue, pick it up, and send a question. In the claimant tab, refresh the claim and reply. Refresh the staff review before recording a decision. The claimant's notification inbox refreshes while its first page is open.
+Open [Claims Workspace](http://127.0.0.1:4200/). Sign in as the demo claimant and submit a claim. In a second tab, sign in as staff, pick up the claim, and send a question. The open claimant screen updates so the claimant can reply. The staff screen receives the reply and can record a decision. If the claimant has their inbox open, the new notification appears there when it is delivered.
 
-The Angular dev server listens on loopback and proxies API requests over HTTPS with certificate validation. The app keeps the bearer token in memory, so a page reload requires signing in again. Angular route guards handle navigation. The APIs enforce roles and record ownership. To build the Angular app, run `npm run build`. A deployed static host would need HTTPS, SPA routing, and the same API path mappings as the development proxy.
+To demo pickup contention, open the same unassigned claim as two different staff accounts. The first successful pickup wins. The other staff member sees an unavailable message and the claim drops out of their queue. If a stale client still submits pickup, the API returns a `409 Conflict` with an explanation.
+
+The API commits claim changes before publishing SignalR updates. SignalR tells the browser when to fetch the latest data through the authenticated REST endpoints. The notification service sends its SignalR update after committing the notification. Reconnecting clients reload the current state. Claims updates use `/api/claims/hubs/claims` through the Angular proxy, and claimant notifications use `/api/live/notifications`.
+
+The Angular dev server listens on loopback and proxies API requests over HTTPS with certificate validation. The app keeps the bearer token in memory, so a page reload requires signing in again. Angular route guards handle navigation. The APIs enforce roles and record ownership. To build the Angular app, run `npm run build`. A deployed static host would need HTTPS, SPA routing, the same API path mappings as the development proxy, and WebSocket upgrade support for the SignalR routes.
 
 ## Sample claims and staff reports
 
@@ -140,7 +144,7 @@ Assigned staff can add or edit a claim's **Exposure estimate** on its review scr
 
 Run `dotnet test` from the repository root. Integration tests use the HTTP pipeline and temporary SQLite databases. They cover login, validation, role and ownership checks, approval and settlement, rejection, invalid transitions, and competing pickups and questions. The claim version guards concurrent updates. EF Core commits each workflow change, history entry, and any related message together.
 
-With the Compose broker running, set `$env:KAFKA_TEST_BOOTSTRAP_SERVERS = '127.0.0.1:9092'` before running `dotnet test`. This enables the end-to-end Kafka test for questions, approval, rejection, settlement, replay, and claimant isolation. It uses a temporary topic and consumer group.
+With the Compose broker running, set `$env:KAFKA_TEST_BOOTSTRAP_SERVERS = '127.0.0.1:9092'` before running `dotnet test`. This enables the end-to-end Kafka and SignalR test for questions, approval, rejection, settlement, replay, and claimant isolation. It uses a temporary topic and consumer group. The test suite also checks queue broadcasts, pickup conflicts, and claim access after a competing pickup.
 
 ## Try the APIs in Swagger
 

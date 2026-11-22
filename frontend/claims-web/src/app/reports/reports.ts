@@ -1,9 +1,10 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { httpResource } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideChartNoAxesColumnIncreasing, lucideRefreshCw } from '@ng-icons/lucide';
+import { lucideChartNoAxesColumnIncreasing } from '@ng-icons/lucide';
 import { ClaimStatus, claimsApi, statusLabels } from '../core/claims';
+import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 
 interface ReportsOverview {
   generatedAt: string;
@@ -19,12 +20,13 @@ interface ReportsOverview {
 
 @Component({
   imports: [CurrencyPipe, DatePipe, NgIcon],
-  viewProviders: [provideIcons({ lucideChartNoAxesColumnIncreasing, lucideRefreshCw })],
+  viewProviders: [provideIcons({ lucideChartNoAxesColumnIncreasing })],
   templateUrl: './reports.html',
   styleUrl: './reports.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Reports {
+  private readonly live = inject(LiveUpdates);
   protected readonly labels = statusLabels;
   protected readonly windows = [7, 30, 90] as const;
   protected readonly days = signal(30);
@@ -35,6 +37,10 @@ export class Reports {
     ? this.overview.value().statuses.map(row => row.count) : [])));
   protected readonly decisions = computed(() => this.overview.hasValue()
     ? this.overview.value().staff.reduce((total, row) => total + row.decisions, 0) : 0);
+
+  constructor() {
+    reloadOnLiveUpdate(this.overview, this.live.claimsVersion);
+  }
 
   protected selectWindow(value: string) {
     const days = this.windows.find(window => String(window) === value);

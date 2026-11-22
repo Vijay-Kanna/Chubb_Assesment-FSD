@@ -57,3 +57,11 @@ Codex ran 13 passing backend tests with Kafka, built Angular, and tested the pas
 During submission review, I pointed out that the claimant would see a rejection without a reason or a customer service contact. I asked Codex to improve that experience. Codex made a claimant-facing reason required and added a decision panel with phone and email links for Chubb Malaysia Customer Service.
 
 Codex kept the reason on the protected claim, with only the claim reference and event metadata sent through Kafka. Assigned staff can record a missing reason once for an older rejection. The demo seed uses that path to backfill the existing fictional sample. Codex tested the required reason, preservation of the recorded decision, and both roles in the browser. It confirmed the claimant could open the rejected claim from the notification and see the recorded explanation.
+
+## Live updates and competing pickups
+
+I asked Codex to replace manual refresh with SignalR for messaging, the queue, and claim requests. I also asked it to make sure staff cannot take a claim that someone else picked up, to improve the error messages, and to add a third staff login.
+
+Codex kept REST for reading and writing authorized claim data. SignalR carries a change signal so open pages fetch the latest state. Kafka still delivers events to the Notifications API. Codex reused the claim version check to enforce one successful pickup and added clear messages for a stale pickup attempt and for a staff member whose open claim is no longer available.
+
+Codex ran 14 passing backend tests with Kafka and tested three staff sessions and a claimant in the browser. The queue updated when a claim arrived and when it was picked up. A competing staff member could not reopen it, and a stale pickup received a `409 Conflict`. The staff question, claimant reply, and approval notification appeared without a refresh.

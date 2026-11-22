@@ -1,7 +1,11 @@
 <a class="text-link back" [routerLink]="session.listRoute()"><ng-icon name="lucideArrowLeft" /> {{ session.isStaff() ? 'Staff queue' : 'My claims' }}</a>
 @if (claim.error()) {
   <p class="error-box" role="alert">{{ loadError() }}</p>
-  <button class="quiet" type="button" (click)="refresh()">Try again</button>
+  @if (noLongerAvailable()) {
+    <a class="button primary" [routerLink]="session.listRoute()">Return to staff queue</a>
+  } @else {
+    <button class="quiet" type="button" (click)="refresh()">Try again</button>
+  }
 } @else if (claim.hasValue()) {
   @let record = claim.value();
   <header class="page-header detail-header">
@@ -12,9 +16,6 @@
     </div>
     <div class="header-tools">
       <app-status-pill [status]="record.status" />
-      <button class="quiet icon-text" type="button" (click)="refresh()" [disabled]="claim.isLoading()" aria-label="Refresh claim">
-        <ng-icon name="lucideRefreshCw" /> <span>Refresh</span>
-      </button>
     </div>
   </header>
   <ol class="progress" aria-label="Claim progress">

@@ -21,7 +21,8 @@ internal static class DemoAccounts
             new() { Name = "Demo Claimant", Email = "claimant@example.test", RoleId = Role.Claimant },
             new() { Name = "Second Claimant", Email = "other-claimant@example.test", RoleId = Role.Claimant },
             new() { Name = "Demo Staff", Email = "staff@example.test", RoleId = Role.ClaimsStaff },
-            new() { Name = "Second Staff", Email = "other-staff@example.test", RoleId = Role.ClaimsStaff }
+            new() { Name = "Second Staff", Email = "other-staff@example.test", RoleId = Role.ClaimsStaff },
+            new() { Name = "Third Staff", Email = "third-staff@example.test", RoleId = Role.ClaimsStaff }
         };
 
         foreach (var account in accounts)

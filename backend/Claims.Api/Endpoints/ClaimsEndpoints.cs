@@ -92,7 +92,7 @@ internal static class ClaimsEndpoints
         CancellationToken cancellationToken)
     {
         var change = await service.PickUpAsync(id, UserId(user), cancellationToken);
-        return ChangeResult(change, "Claim is no longer available for pickup.");
+        return ChangeResult(change, "This claim has already been picked up by a staff member and cannot be taken again.");
     }
 
     private static async Task<IResult> Messages(Guid id, ClaimsPrincipal user, ClaimsService service,

@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
 using Chubb.ApiDocumentation;
+using Chubb.Realtime;
 using Claims.Api.Application;
 using Claims.Api.Auth;
 using Claims.Api.Domain;
@@ -10,6 +11,7 @@ using Claims.Api.Messaging;
 using Claims.Api.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +35,9 @@ builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<ClaimsService>();
 builder.Services.AddScoped<ReportsService>();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, SubjectUserIdProvider>();
+builder.Services.AddSingleton<ClaimUpdates>();
 builder.Services.AddHostedService<ClaimNotificationPublisher>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
@@ -43,6 +48,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         options.TokenValidationParameters = tokens.Validation;
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context => RealtimeAuthentication.ReadHubToken(context, ClaimsHub.Path),
             OnTokenValidated = context =>
             {
                 if (!Guid.TryParse(context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out _))
@@ -82,6 +88,7 @@ app.UseAssessmentSwagger(apiTitle);
 app.MapLogin();
 app.MapClaims();
 app.MapReports();
+app.MapHub<ClaimsHub>(ClaimsHub.Path, options => options.CloseOnAuthenticationExpiration = true);
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

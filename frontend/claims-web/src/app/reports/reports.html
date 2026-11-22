@@ -6,14 +6,12 @@
         @for (window of windows; track window) { <option [value]="window">Last {{ window }} days</option> }
       </select>
     </label>
-    <button class="quiet icon-text" type="button" aria-label="Refresh report" (click)="overview.reload()" [disabled]="overview.isLoading()">
-      <ng-icon name="lucideRefreshCw" /> <span>Refresh</span>
-    </button>
   </div>
 </header>
 
 @if (overview.error()) {
-  <p class="error-box" role="alert">Could not load the report. Refresh to try again.</p>
+  <p class="error-box" role="alert">Could not load the report.</p>
+  <button class="quiet" type="button" (click)="overview.reload()">Try again</button>
 } @else if (overview.hasValue()) {
   @let report = overview.value();
   <dl class="report-totals">

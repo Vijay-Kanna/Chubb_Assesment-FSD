@@ -1,8 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Chubb.ApiDocumentation;
+using Chubb.Realtime;
 using Claims.Contracts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -28,6 +30,8 @@ public sealed class Program
             options.UseSqlite(config.GetConnectionString("Notifications") ?? $"Data Source={database}");
         });
         builder.Services.AddHostedService<ClaimNotificationConsumer>();
+        builder.Services.AddSignalR();
+        builder.Services.AddSingleton<IUserIdProvider, SubjectUserIdProvider>();
 
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -49,6 +53,7 @@ public sealed class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAssessmentSwagger(ApiTitle);
+        app.MapHub<NotificationsHub>(NotificationsHub.Path, options => options.CloseOnAuthenticationExpiration = true);
 
         app.MapGet("/notifications", ListNotifications)
             .WithTags("Notifications")
@@ -118,6 +123,7 @@ public sealed class Program
         };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context => RealtimeAuthentication.ReadHubToken(context, NotificationsHub.Path),
             OnTokenValidated = context =>
             {
                 if (!Guid.TryParse(context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out _))

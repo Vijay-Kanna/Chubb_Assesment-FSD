@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Claims.Api.Application;
 
-internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
+internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock, ClaimUpdates updates)
 {
     public async Task<ClaimView> SubmitAsync(Guid claimantId, ClaimType type, DateOnly incidentDate,
         string description, CancellationToken cancellationToken)
@@ -16,6 +16,7 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
         db.Claims.Add(claim);
         AddHistory(claim, claimantId, ClaimAction.Submitted, previousStatus: null, now);
         await db.SaveChangesAsync(cancellationToken);
+        await updates.PublishAsync(claimantId);
         return ClaimView.From(claim);
     }
 
@@ -176,6 +177,7 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
             return new(ClaimChangeOutcome.Conflict);
         }
 
+        await updates.PublishAsync(claim.ClaimantId);
         return new(ClaimChangeOutcome.Changed, ClaimView.From(claim));
     }
 

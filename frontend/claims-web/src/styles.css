@@ -63,7 +63,10 @@ button:disabled { opacity: .56; cursor: default; }
 .workspace-label { margin-top: auto; border-top: 1px solid #5b6182; padding: 1.05rem .45rem 0; font-size: .78rem; color: #dce0f6; }
 .shell-body { min-width: 0; }
 .topbar { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .7rem clamp(1rem, 3vw, 2.5rem); background: var(--surface); border-bottom: 1px solid var(--line); }
-.topbar-title { font-weight: 800; color: var(--muted); font-size: .87rem; }
+.live-indicator { display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto; color: var(--muted); font-size: .75rem; font-weight: 800; }
+.live-indicator::before { content: ''; width: .45rem; height: .45rem; border-radius: 50%; background: #ad6c15; }
+.live-indicator.connected { color: #186345; }
+.live-indicator.connected::before { background: #278664; }
 .account { display: flex; align-items: center; justify-content: end; gap: .6rem; min-width: 0; }
 .account-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; color: var(--muted); }
 .avatar { display: grid; place-items: center; background: var(--tint); color: var(--action); font-weight: 800; font-size: .7rem; width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto; }
@@ -185,7 +188,6 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   .navigation ng-icon { font-size: 1rem; }
   .workspace-label { display: none; }
   .topbar { min-height: 54px; padding: .45rem .95rem; }
-  .topbar-title { display: none; }
   .account { margin-left: auto; }
   .detail-grid { grid-template-columns: minmax(0, 1fr); }
   .login-page { grid-template-columns: 1fr; }

@@ -20,7 +20,9 @@
     </aside>
     <div class="shell-body">
       <header class="topbar">
-        <span class="topbar-title">Claims Workspace</span>
+        <span class="live-indicator" role="status" [class.connected]="live.claimsConnected()">
+          {{ live.claimsConnected() ? 'Live updates' : 'Connecting live updates…' }}
+        </span>
         <div class="account">
           <span class="avatar" aria-hidden="true">{{ initials() }}</span>
           <span class="account-email">{{ account.email }}</span>

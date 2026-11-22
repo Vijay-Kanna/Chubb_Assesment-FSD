@@ -1,12 +1,13 @@
 <header class="page-header">
   <div><h1>Notifications</h1><p class="muted">Questions and decisions on your claims.</p></div>
-  <button type="button" class="quiet icon-text" (click)="notices.reload()" [disabled]="notices.isLoading()">
-    <ng-icon name="lucideRefreshCw" /> Refresh
-  </button>
+  <span class="live-indicator" role="status" [class.connected]="live.notificationsConnected()">
+    {{ live.notificationsConnected() ? 'Live notifications' : 'Connecting notifications…' }}
+  </span>
 </header>
 <section class="surface" aria-label="Notifications">
   @if (notices.error()) {
-    <p class="error-box section-error" role="alert">Could not load notifications. Check that the Notifications API is running, then refresh.</p>
+    <p class="error-box section-error" role="alert">Could not load notifications. Check that the Notifications API is running.</p>
+    <div class="section-bar"><button class="quiet" type="button" (click)="notices.reload()">Try again</button></div>
   } @else if (notices.hasValue()) {
     <ul class="notice-list">
       @for (notice of notices.value(); track notice.eventId) {

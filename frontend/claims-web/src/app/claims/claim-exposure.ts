@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, signal
 import { form, FormField, required, submit } from '@angular/forms/signals';
 import { claimUrl } from '../core/claims';
 import { ClaimsClient, errorMessage } from '../core/api';
+import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
 
 const currencies = ['MYR', 'SGD', 'AUD', 'HKD', 'NZD', 'USD'] as const;
 type Currency = typeof currencies[number];
@@ -16,6 +17,7 @@ type Currency = typeof currencies[number];
 })
 export class ClaimExposure {
   private readonly client = inject(ClaimsClient);
+  private readonly live = inject(LiveUpdates);
   readonly id = input.required<string>();
   readonly editable = input.required<boolean>();
   protected readonly currencies = currencies;
@@ -29,6 +31,10 @@ export class ClaimExposure {
   protected readonly estimate = httpResource<{ amountMinor: number | null; currency: Currency | null }>(
     () => claimUrl(this.id()) + '/exposure',
   );
+
+  constructor() {
+    reloadOnLiveUpdate(this.estimate, this.live.claimsVersion);
+  }
 
   protected edit() {
     const present = this.estimate.hasValue() ? this.estimate.value() : null;

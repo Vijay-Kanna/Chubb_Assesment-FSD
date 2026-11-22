@@ -25,15 +25,13 @@
           @for (status of statuses; track status) { <option [value]="status">{{ labels[status] }}</option> }
         </select>
       </label>
-      <button class="quiet icon-text" type="button" aria-label="Refresh claims" (click)="claims.reload()" [disabled]="claims.isLoading()">
-        <ng-icon name="lucideRefreshCw" /> <span>Refresh</span>
-      </button>
     </div>
   </div>
   @if (claims.isLoading() && !claims.hasValue()) {
     <p class="state" role="status">Loading claims…</p>
   } @else if (claims.error()) {
     <p class="error-box section-error" role="alert">{{ loadError() }}</p>
+    <div class="section-bar"><button class="quiet" type="button" (click)="claims.reload()">Try again</button></div>
   } @else if (claims.hasValue()) {
     @if (claims.value().length) {
       <div class="claim-table" role="table" aria-label="Claims">
