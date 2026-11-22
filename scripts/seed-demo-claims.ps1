@@ -12,9 +12,9 @@ $base = $ApiBase.AbsoluteUri.TrimEnd('/')
 function Invoke-ClaimsRequest($method, $path, $headers, $data) {
     $arguments = @{ Method = $method; Uri = "$base$path" }
     if ($headers) { $arguments.Headers = $headers }
-    if ($null -ne $data) {
+    if ($null -ne $data -or ($method -eq 'Post' -and $path.EndsWith('/approve'))) {
         $arguments.ContentType = 'application/json'
-        $arguments.Body = $data | ConvertTo-Json -Compress
+        $arguments.Body = ConvertTo-Json -InputObject $data -Compress
     }
     Invoke-RestMethod @arguments
 }

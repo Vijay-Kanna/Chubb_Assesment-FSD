@@ -2,7 +2,18 @@
 
 The Angular workspace serves claimants and claims staff. The .NET Claims API owns the claims workflow, and the Notifications API consumes claim events from Kafka. SignalR keeps open views up to date. Each service owns a SQLite database. You can also demonstrate the backend directly over HTTP.
 
-## Run locally
+## Run the full stack locally
+
+You need PowerShell 7, the .NET 10 SDK, Node.js 24.15 or later in the Node 24 series, and Docker with Compose.
+
+1. From the repository root, trust the development HTTPS certificate using the commands below.
+2. Follow [Run Kafka notifications](#run-kafka-notifications) to start Kafka and both APIs. Use that section's Claims API command for the full stack so both services use the same signing key.
+3. Follow [Run the Angular workspace](#run-the-angular-workspace) to install packages, configure Node's certificate trust, and start the UI. Use the demo password generated in step 2.
+4. Run the [sample claim script](#sample-claims-and-staff-reports), then open [Claims Workspace](http://127.0.0.1:4200/).
+
+See the [panel walkthrough](PANEL-WALKTHROUGH.md) for the demo sequence, trade-offs, and deferred work. The [AI journal](AI-JOURNAL.md) records the development decisions and verification.
+
+## Run the Claims API alone
 
 Use the .NET 10 SDK. Run these commands from the repository root in PowerShell 7:
 
@@ -22,7 +33,7 @@ Open `https://localhost:7164/swagger/` to explore the Claims API. SQLite migrati
 
 The default database is `backend/Claims.Api/claims.db`. Override it with `ConnectionStrings__Claims`. The development JWT key is random per process by default, so restarting invalidates outstanding tokens. Set a Base64-encoded random key of at least 32 bytes in `Jwt__SigningKey` to keep tokens valid across restarts. Outside Development, the API requires a configured key and does not seed demo accounts.
 
-If Windows has multiple localhost certificates and Kestrel selects an untrusted one, stop the API and run the following in the server terminal before restarting. This selects a valid certificate from your user store.
+If Windows has multiple localhost certificates and Kestrel selects an untrusted one, stop the API and run the following in the server terminal before restarting. This uses the localhost certificate from your user store. Verify that both Swagger pages open over HTTPS before starting Angular.
 
 ```powershell
 $env:Kestrel__Certificates__Default__Subject = 'localhost'
@@ -61,7 +72,7 @@ $reply = @{ body = 'Outside my home.' } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/replies" -Headers $claimant -ContentType 'application/json' -Body $reply
 Invoke-RestMethod -Uri "$base/claims/${id}/messages" -Headers $claimant
 
-Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/approve" -Headers $staff
+Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/approve" -Headers $staff -ContentType 'application/json' -Body '{"amount":850,"currency":"MYR"}'
 Invoke-RestMethod -Method Post -Uri "$base/claims/${id}/settle" -Headers $staff
 Invoke-RestMethod -Uri "$base/claims/${id}" -Headers $claimant
 Invoke-RestMethod -Uri "$base/claims/${id}/history" -Headers $claimant
