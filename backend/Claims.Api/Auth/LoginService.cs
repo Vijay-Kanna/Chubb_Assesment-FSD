@@ -7,7 +7,7 @@ namespace Claims.Api.Auth;
 
 internal sealed class LoginService(ClaimsDbContext db, IPasswordHasher<User> hasher, JwtTokens tokens)
 {
-    public async Task<LoginResponse?> LoginAsync(string email, string password, CancellationToken cancellationToken)
+    public async Task<(User User, LoginResponse Token)?> LoginAsync(string email, string password, CancellationToken cancellationToken)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Email == normalizedEmail, cancellationToken);
@@ -17,6 +17,6 @@ internal sealed class LoginService(ClaimsDbContext db, IPasswordHasher<User> has
             return null;
         }
 
-        return tokens.Issue(user);
+        return (user, tokens.Issue(user));
     }
 }

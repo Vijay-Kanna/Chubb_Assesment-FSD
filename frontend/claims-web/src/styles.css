@@ -105,6 +105,9 @@ button:disabled { opacity: .56; cursor: default; }
 .action-cell { width: 1%; text-align: right; }
 .table-actions { display: flex; justify-content: flex-end; align-items: center; gap: .75rem; }
 .table-pickup { padding-inline: .72rem; }
+.table-links { display: flex; align-items: center; gap: .5rem; }
+.table-chat { width: 44px; min-height: 44px; padding: 0; justify-content: center; color: var(--action); }
+.table-chat ng-icon { font-size: 1.05rem; }
 .pickup-success { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .8rem; }
 .incident-cell, .updated-cell { font-size: .83rem; color: var(--muted); }
 .status-pill { display: inline-flex; align-items: center; gap: .4rem; padding: .22rem .55rem; color: #374469; background: #edf0f8; border-radius: 999px; font-size: .74rem; font-weight: 800; white-space: nowrap; }
@@ -231,7 +234,13 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   .claim-table .status-pill { white-space: normal; border-radius: 8px; }
   .claim-table .status-pill::before { flex: 0 0 auto; }
   .table-actions { flex-direction: column; align-items: flex-end; gap: .3rem; }
-  .table-actions .text-link, .table-pickup { min-height: 38px; }
+  .claim-table { table-layout: fixed; }
+  .claim-table th:nth-child(3) { width: 30%; }
+  .claim-table .action-cell { width: 34%; }
+  .claim-cell .reference { overflow-wrap: anywhere; }
+  .table-actions .text-link { min-height: 38px; }
+  .table-pickup { min-height: 44px; max-width: 100%; white-space: normal; line-height: 1.25; padding-inline: .4rem; }
+  .table-links { justify-content: flex-end; flex-wrap: wrap; }
   .progress { padding-inline: .5rem; }
   .progress li { flex-direction: column; align-items: center; text-align: center; font-size: .68rem; }
   .progress li:not(:last-child)::after { display: none; }

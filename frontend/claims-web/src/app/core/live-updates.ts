@@ -1,6 +1,6 @@
 import { Injectable, ResourceRef, Signal, WritableSignal, effect, inject, signal } from '@angular/core';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
-import { Session } from './session';
+import { Session, workspaceHeaders } from './session';
 
 @Injectable({ providedIn: 'root' })
 export class LiveUpdates {
@@ -21,10 +21,10 @@ export class LiveUpdates {
       this.notificationsConnection.set(false);
       if (!session) return;
 
-      const disconnectClaims = this.connect('/api/claims/hubs/claims', session.accessToken,
+      const disconnectClaims = this.connect('/api/claims/hubs/claims',
         'ClaimsChanged', this.claimsConnection, this.claimsRevision);
       const disconnectNotifications = session.role === 'Claimant'
-        ? this.connect('/api/live/notifications', session.accessToken,
+        ? this.connect('/api/live/notifications',
           'NotificationsChanged', this.notificationsConnection, this.notificationsRevision)
         : undefined;
 
@@ -35,10 +35,10 @@ export class LiveUpdates {
     });
   }
 
-  private connect(url: string, accessToken: string, event: string, connected: WritableSignal<boolean>,
+  private connect(url: string, event: string, connected: WritableSignal<boolean>,
     revision: WritableSignal<number>): () => void {
     const connection = new HubConnectionBuilder()
-      .withUrl(url, { accessTokenFactory: () => accessToken })
+      .withUrl(url, { headers: workspaceHeaders })
       .withAutomaticReconnect([0, 1000, 3000, 7500])
       .configureLogging(LogLevel.None)
       .build();

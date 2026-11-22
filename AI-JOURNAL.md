@@ -93,3 +93,9 @@ Codex kept the existing API array responses and used the total-count header when
 Codex verified two-page navigation in the queue, My Claims, notifications, chat, and claim history. It also checked the staff report controls and the API tests for authorization, message ordering, and notification pagination with Kafka. The Angular production build succeeded with the existing PDF dependency warnings.
 
 I asked Codex to add a page-size selector with 10, 25, 50, 100, 250, and 500 items. Codex added the control to every paginated view and reset the current page to one when the size changed. It raised the API limit to 500, kept the default UI size at 10, and verified the queue reset, chat and history sizes, and the other selectors in the browser. All 14 backend tests passed with Kafka, and the Angular build succeeded with the existing PDF dependency warnings.
+
+## Refresh-safe sign-in and queue actions
+
+I reported that refreshing signed me out and asked for a persistent session, clearer staff actions, and a chat shortcut in the claims table. Codex replaced browser-held bearer tokens with a Secure, HttpOnly, SameSite cookie, restored the session before routing, and kept the existing 20-minute expiry and the Swagger bearer workflow. Browser tabs share a session and refresh when it changes. Cookie-authenticated writes require the workspace request header, and browser SignalR connections check the origin.
+
+Codex renamed the staff action to Accept for review and added View claim and chat shortcuts. The staff shortcut becomes available once the claim is assigned to that user, and claimants can open their own threads directly. Codex verified both roles across refresh, sign-out, the notification received live from Kafka, and the actions at 320 pixels. All 15 backend tests passed. The Angular production build succeeded with the existing PDF dependency warnings, and npm audit reported zero known vulnerabilities.

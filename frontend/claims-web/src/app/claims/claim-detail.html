@@ -90,7 +90,7 @@
         <section class="surface padded review-panel" aria-labelledby="review-heading">
           <h2 id="review-heading">Review actions</h2>
           @if (record.status === 'Submitted') {
-            <p class="muted">Pick up this claim from the staff queue to start a review.</p>
+            <p class="muted">Accept this claim from the staff queue to start a review.</p>
             <a class="button quiet" routerLink="/staff">Go to staff queue</a>
           } @else if (pendingDecision(); as decision) {
             @if (decision === 'reject' || decision === 'rejection-reason') {

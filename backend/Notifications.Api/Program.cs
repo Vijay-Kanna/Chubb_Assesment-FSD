@@ -35,7 +35,7 @@ public sealed class Program
 
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IConfiguration>(ConfigureBearer);
+            .Configure<IConfiguration, IHostEnvironment>(ConfigureBearer);
         builder.Services.AddAuthorization();
 
         var app = builder.Build();
@@ -100,7 +100,7 @@ public sealed class Program
         )));
     }
 
-    private static void ConfigureBearer(JwtBearerOptions options, IConfiguration configuration)
+    private static void ConfigureBearer(JwtBearerOptions options, IConfiguration configuration, IHostEnvironment environment)
     {
         var configuredKey = configuration["Jwt:SigningKey"];
         if (string.IsNullOrWhiteSpace(configuredKey))
@@ -129,7 +129,8 @@ public sealed class Program
         };
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context => RealtimeAuthentication.ReadHubToken(context, NotificationsHub.Path),
+            OnMessageReceived = context => RealtimeAuthentication.ReadToken(context, NotificationsHub.Path,
+                configuration["BrowserSession:Origin"], environment.IsDevelopment()),
             OnTokenValidated = context =>
             {
                 if (!Guid.TryParse(context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out _))

@@ -40,6 +40,52 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
     }
 
     [Fact]
+    public async Task Browser_session_restores_and_clears_the_cookie_and_requires_a_header_for_writes()
+    {
+        using var browser = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        const string path = "/auth/session";
+        const string header = "X-Claims-Workspace";
+        using var login = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(new { email = "claimant@example.test", password = ClaimsApiFactory.DemoPassword })
+        };
+        login.Headers.Add(header, "1");
+        using var signedIn = await browser.SendAsync(login);
+        Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
+        var cookie = Assert.Single(signedIn.Headers.GetValues("Set-Cookie"));
+        Assert.StartsWith("__Host-ClaimsSession=", cookie);
+        foreach (var attribute in new[] { "path=/", "secure", "samesite=strict", "httponly" })
+            Assert.Contains(attribute, cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("accessToken", (await Read(signedIn)).GetRawText());
+
+        using var restored = await browser.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
+        Assert.Equal("claimant@example.test", (await Read(restored)).GetProperty("email").GetString());
+
+        using var rejectedWrite = await browser.PostAsJsonAsync("/claims", ValidClaim());
+        Assert.Equal(HttpStatusCode.Unauthorized, rejectedWrite.StatusCode);
+        using var rejectedLogout = await browser.DeleteAsync(path);
+        Assert.Equal(HttpStatusCode.Forbidden, rejectedLogout.StatusCode);
+
+        using var submit = new HttpRequestMessage(HttpMethod.Post, "/claims") { Content = JsonContent.Create(ValidClaim()) };
+        submit.Headers.Add(header, "1");
+        using var created = await browser.SendAsync(submit);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        using var logout = new HttpRequestMessage(HttpMethod.Delete, path);
+        logout.Headers.Add(header, "1");
+        using var signedOut = await browser.SendAsync(logout);
+        Assert.Equal(HttpStatusCode.NoContent, signedOut.StatusCode);
+        using var after = await browser.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
+    }
+
+    [Fact]
     public async Task Unauthenticated_and_invalid_bearer_tokens_are_rejected()
     {
         using var missing = await Request(HttpMethod.Get, "/claims");

@@ -3,7 +3,7 @@
     <h1>{{ conversationList() ? 'Conversations' : isQueue() ? 'Staff queue' : 'My claims' }}</h1>
     <p class="muted">
       @if (conversationList()) { Choose a claim to read its conversation. }
-      @else if (isQueue()) { Pick up an incoming claim or open an existing assignment. }
+      @else if (isQueue()) { Accept a submitted claim to start reviewing it, or view your assigned claims. }
       @else { Track your claims and respond when more information is needed. }
     </p>
   </div>
@@ -22,8 +22,9 @@
 }
 @if (assignedClaim(); as assigned) {
   <div class="success-line pickup-success" role="status">
-    <span>{{ reference(assigned.id) }} was assigned to you.</span>
-    <a class="text-link" [routerLink]="['/staff', assigned.id]">Open claim <ng-icon name="lucideArrowRight" /></a>
+    <span>{{ reference(assigned.id) }} was accepted for review and assigned to you.</span>
+    <a class="text-link" [routerLink]="['/staff', assigned.id]">View claim <ng-icon name="lucideArrowRight" /></a>
+    <a class="text-link" [routerLink]="['/conversations', assigned.id]"><ng-icon name="lucideMessageCircle" /> Open chat</a>
   </div>
 }
 
@@ -72,15 +73,28 @@
                 <td class="action-cell">
                   <div class="table-actions">
                     @if (isQueue() && claim.status === 'Submitted' && !claim.assignedStaffId) {
-                      <button class="primary table-pickup" type="button" (click)="pickUp(claim)"
-                        [attr.aria-label]="'Pick up ' + reference(claim.id)" [disabled]="taking().has(claim.id)">
-                        {{ taking().has(claim.id) ? 'Picking up…' : 'Pick up' }}
+                      <button class="primary table-pickup" type="button" (click)="acceptForReview(claim)"
+                        [attr.aria-label]="'Accept ' + reference(claim.id) + ' for review'" [disabled]="taking().has(claim.id)">
+                        {{ taking().has(claim.id) ? 'Accepting…' : 'Accept for review' }}
                       </button>
                     }
-                    <a class="text-link" [routerLink]="[rowRoute(), claim.id]"
-                      [attr.aria-label]="'Open ' + reference(claim.id) + (conversationList() ? ' conversation' : '')">
-                      Open <ng-icon name="lucideArrowRight" />
-                    </a>
+                    <div class="table-links">
+                      @if (conversationList()) {
+                        <a class="text-link" [routerLink]="[rowRoute(), claim.id]"
+                          [attr.aria-label]="'Open conversation for ' + reference(claim.id)">
+                          <ng-icon name="lucideMessageCircle" /> Open chat
+                        </a>
+                      } @else {
+                        <a class="text-link" [routerLink]="[rowRoute(), claim.id]"
+                          [attr.aria-label]="'View claim ' + reference(claim.id)">View claim</a>
+                        @if (canOpenConversation(claim)) {
+                          <a class="button quiet table-chat" [routerLink]="['/conversations', claim.id]"
+                            [attr.aria-label]="'Open conversation for ' + reference(claim.id)" title="Open conversation">
+                            <ng-icon name="lucideMessageCircle" />
+                          </a>
+                        }
+                      }
+                    </div>
                   </div>
                 </td>
               </tr>

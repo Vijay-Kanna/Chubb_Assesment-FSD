@@ -80,7 +80,7 @@ export class ClaimDetail {
     return this.session.isStaff() && error instanceof HttpErrorResponse && error.status === 404;
   });
   protected readonly loadError = computed(() => this.error() || (this.noLongerAvailable()
-    ? 'This claim is no longer available to you. Another staff member may have picked it up.'
+    ? 'This claim is no longer available to you. Another staff member may have accepted it for review.'
     : errorMessage(this.claim.error(), 'Could not load this claim.')));
   protected readonly stages = ['Submitted', 'In review', 'Decision', 'Settled'];
   protected readonly stage = computed(() => {

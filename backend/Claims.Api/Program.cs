@@ -48,7 +48,8 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         options.TokenValidationParameters = tokens.Validation;
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context => RealtimeAuthentication.ReadHubToken(context, ClaimsHub.Path),
+            OnMessageReceived = context => RealtimeAuthentication.ReadToken(context, ClaimsHub.Path,
+                builder.Configuration["BrowserSession:Origin"], builder.Environment.IsDevelopment()),
             OnTokenValidated = context =>
             {
                 if (!Guid.TryParse(context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out _))

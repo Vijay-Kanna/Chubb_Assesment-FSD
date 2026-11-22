@@ -32,12 +32,15 @@
         <div class="account">
           <span class="avatar" aria-hidden="true">{{ initials() }}</span>
           <span class="account-email">{{ account.email }}</span>
-          <button type="button" class="quiet icon-text" (click)="session.signOut()">
-            <ng-icon name="lucideLogOut" /> <span>Sign out</span>
+          <button type="button" class="quiet icon-text" (click)="session.signOut()" [disabled]="session.signingOut()">
+            <ng-icon name="lucideLogOut" /> <span>{{ session.signingOut() ? 'Signing out…' : 'Sign out' }}</span>
           </button>
         </div>
       </header>
-      <main id="workspace" class="workspace" tabindex="-1"><router-outlet /></main>
+      <main id="workspace" class="workspace" tabindex="-1">
+        @if (session.signOutError()) { <p class="error-box" role="alert">{{ session.signOutError() }}</p> }
+        <router-outlet />
+      </main>
     </div>
   </div>
 } @else {
