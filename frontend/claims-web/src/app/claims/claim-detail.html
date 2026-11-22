@@ -103,6 +103,9 @@
           }
         </section>
       }
+      @if (session.isStaff() && isAssigned()) {
+        <app-claim-exposure [id]="record.id" [editable]="record.status !== 'Rejected' && record.status !== 'Settled'" />
+      }
       <section class="surface padded" aria-labelledby="history-heading">
         <h2 id="history-heading" class="section-title"><ng-icon name="lucideHistory" /> Claim history</h2>
         @if (history.error()) {

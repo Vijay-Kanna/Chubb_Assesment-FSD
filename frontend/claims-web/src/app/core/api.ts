@@ -14,6 +14,10 @@ export class ClaimsClient {
   review(id: string, action: ReviewAction, body?: string) {
     return firstValueFrom(this.http.post<Claim>(claimUrl(id) + '/' + action, body ? { body } : null));
   }
+
+  saveExposure(id: string, amount: number, currency: string) {
+    return firstValueFrom(this.http.put<Claim>(claimUrl(id) + '/exposure', { amount, currency }));
+  }
 }
 
 export function errorMessage(error: unknown, fallback: string): string {

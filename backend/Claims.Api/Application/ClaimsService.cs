@@ -46,6 +46,7 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
         var authorizedClaim = VisibleClaims(userId, isStaff).Where(claim => claim.Id == id);
         var entries = await db.ClaimHistory.AsNoTracking()
             .Where(entry => authorizedClaim.Any(claim => claim.Id == entry.ClaimId))
+            .Where(entry => isStaff || entry.Action != ClaimAction.ExposureUpdated)
             .OrderBy(entry => entry.Id)
             .Select(entry => new HistoryView(entry.Id, entry.ActorUserId, entry.Action, entry.PreviousStatus,
                 entry.NewStatus, entry.OccurredAt, entry.ClaimMessageId))
@@ -53,6 +54,30 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
 
         // Every submitted claim has a history entry, committed with the claim.
         return entries.Count == 0 ? null : entries;
+    }
+
+    public Task<ExposureEstimate?> GetExposureAsync(Guid id, Guid staffId, CancellationToken cancellationToken) =>
+        ParticipantClaims(staffId, isStaff: true).AsNoTracking().Where(claim => claim.Id == id)
+            .Select(claim => new ExposureEstimate(claim.EstimatedExposureMinor, claim.EstimatedExposureCurrency))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<ClaimChange> SetExposureAsync(Guid id, Guid staffId, long amountMinor,
+        ExposureCurrency currency, CancellationToken cancellationToken)
+    {
+        var claim = await ParticipantClaims(staffId, isStaff: true)
+            .SingleOrDefaultAsync(claim => claim.Id == id, cancellationToken);
+        if (claim is null)
+            return new(ClaimChangeOutcome.NotFound);
+
+        var version = claim.Version;
+        var now = clock.GetUtcNow().UtcDateTime;
+        if (!claim.TrySetExposure(amountMinor, currency, now))
+            return new(ClaimChangeOutcome.Conflict);
+        if (claim.Version == version)
+            return new(ClaimChangeOutcome.Changed, ClaimView.From(claim));
+
+        AddHistory(claim, staffId, ClaimAction.ExposureUpdated, claim.Status, now);
+        return await SaveChangeAsync(claim, cancellationToken);
     }
 
     public async Task<IReadOnlyList<ClaimMessageView>?> MessagesAsync(Guid id, Guid userId, bool isStaff,
@@ -196,3 +221,5 @@ internal sealed record HistoryView(long Id, Guid ActorUserId, ClaimAction Action
     ClaimStatus NewStatus, DateTime OccurredAt, long? ClaimMessageId);
 
 internal sealed record ClaimMessageView(long Id, Guid SenderUserId, string Body, DateTime SentAt);
+
+internal sealed record ExposureEstimate(long? AmountMinor, ExposureCurrency? Currency);

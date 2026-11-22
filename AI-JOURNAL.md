@@ -43,3 +43,11 @@ Codex exercised both roles in the browser against the running APIs and Kafka. It
 I asked Codex to run the .NET services, Angular, and Kafka, and to add Swagger. Codex kept ASP.NET Core's OpenAPI generation and added Swagger UI to each service for Development. The generated contracts mark protected operations with JWT bearer authentication. The login endpoint stays public and documented with its request and response.
 
 Codex verified both Swagger pages in the browser, confirmed that protected operations reject anonymous requests, and used a claimant token to reach both APIs through Angular's proxy. All 12 backend tests passed with Kafka running. Codex documented Swagger sign-in and left the local stack running.
+
+## Demo claims and staff reporting
+
+I asked Codex to add sample claims, test the app, add a password visibility button, and build a reporting module. Codex added eight fictional claims through the API and checked that rerunning the seed script skipped matching records.
+
+Codex added a staff-only report for claim status, staff workload and decisions, and outstanding exposure. It modeled exposure as an optional, currency-specific estimate entered by the assigned staff member. The report groups the estimates for open claims by currency and counts claims with missing estimates. The claim owner still sees their workflow history. Staff estimate changes appear in staff history.
+
+Codex ran 13 passing backend tests with Kafka, built Angular, and tested the password toggle, staff reports, estimate editing, and seeded claimant notifications in the browser. The tests verified that a claimant cannot read staff reports or estimates, that unrelated staff cannot edit estimates, and that a closed claim's estimate does not contribute to outstanding exposure.

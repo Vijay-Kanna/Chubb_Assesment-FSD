@@ -31,6 +31,7 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options) :
             claim.Property(x => x.Version).IsConcurrencyToken();
             claim.Property(x => x.Type).HasConversion<string>();
             claim.Property(x => x.Status).HasConversion<string>();
+            claim.Property(x => x.EstimatedExposureCurrency).HasConversion<string>();
             claim.HasOne<User>().WithMany().HasForeignKey(x => x.ClaimantId).OnDelete(DeleteBehavior.Restrict);
             claim.HasOne<User>().WithMany().HasForeignKey(x => x.AssignedStaffId).OnDelete(DeleteBehavior.Restrict);
             claim.HasIndex(x => new { x.AssignedStaffId, x.Status });

@@ -1,0 +1,39 @@
+<section class="surface padded" aria-labelledby="claim-exposure-title">
+  <h2 id="claim-exposure-title">Exposure estimate</h2>
+  @if (estimate.error()) {
+    <p class="muted" role="status">Could not load the estimate.</p>
+    <button class="quiet" type="button" (click)="estimate.reload()">Try again</button>
+  } @else if (estimate.hasValue()) {
+    @let current = estimate.value();
+    @if (current.amountMinor !== null && current.currency !== null) {
+      <p class="estimate-amount">{{ current.amountMinor / 100 | currency:current.currency:'code' }}</p>
+    } @else { <p class="muted">No estimate recorded.</p> }
+    @if (editable() && editing()) {
+      <form class="form-stack" (submit)="save($event)" novalidate>
+        <label class="field">Amount
+          <input type="text" inputmode="decimal" [formField]="estimateForm.amount"
+            [attr.aria-describedby]="estimateForm.amount().touched() && estimateForm.amount().invalid() ? 'amount-error' : null" />
+        </label>
+        @if (estimateForm.amount().touched() && estimateForm.amount().invalid()) {
+          <p class="field-error" id="amount-error">{{ estimateForm.amount().errors()[0].message }}</p>
+        }
+        <label class="field">Currency
+          <select [formField]="estimateForm.currency">
+            @for (currency of currencies; track currency) { <option [value]="currency">{{ currency }}</option> }
+          </select>
+        </label>
+        @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+        <div class="review-buttons">
+          <button class="primary" type="submit" [disabled]="estimateForm().submitting()">Save estimate</button>
+          <button class="quiet" type="button" (click)="editing.set(false)" [disabled]="estimateForm().submitting()">Cancel</button>
+        </div>
+      </form>
+    } @else if (editable()) {
+      <button class="quiet estimate-button" type="button" (click)="edit()">
+        {{ current.amountMinor === null ? 'Add estimate' : 'Edit estimate' }}
+      </button>
+    }
+  } @else {
+    <p class="muted" role="status">Loading estimate…</p>
+  }
+</section>

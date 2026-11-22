@@ -1,0 +1,65 @@
+<header class="page-header report-header">
+  <div><h1>Claims reports</h1><p class="muted">Team workload, decisions, and outstanding exposure.</p></div>
+  <div class="header-tools">
+    <label class="filter-label">Activity window
+      <select #windowSelector [value]="days()" (change)="selectWindow(windowSelector.value)">
+        @for (window of windows; track window) { <option [value]="window">Last {{ window }} days</option> }
+      </select>
+    </label>
+    <button class="quiet icon-text" type="button" aria-label="Refresh report" (click)="overview.reload()" [disabled]="overview.isLoading()">
+      <ng-icon name="lucideRefreshCw" /> <span>Refresh</span>
+    </button>
+  </div>
+</header>
+
+@if (overview.error()) {
+  <p class="error-box" role="alert">Could not load the report. Refresh to try again.</p>
+} @else if (overview.hasValue()) {
+  @let report = overview.value();
+  <dl class="report-totals">
+    <div><dt>Open claims</dt><dd>{{ report.openClaims }}</dd></div>
+    <div><dt>Unassigned</dt><dd>{{ report.unassigned }}</dd></div>
+    <div><dt>Awaiting information</dt><dd>{{ report.awaitingInformation }}</dd></div>
+    <div><dt>Decisions in {{ report.days }} days</dt><dd>{{ decisions() }}</dd></div>
+  </dl>
+  <div class="report-panels">
+    <section class="surface padded" aria-labelledby="status-report">
+      <h2 id="status-report" class="section-title"><ng-icon name="lucideChartNoAxesColumnIncreasing" /> Claims by status</h2>
+      <ul class="status-bars">
+        @for (row of report.statuses; track row.status) {
+          <li>
+            <span>{{ labels[row.status] }}</span>
+            <span class="bar-track" aria-hidden="true"><span [attr.data-status]="row.status" [style.width.%]="row.count * 100 / peak()"></span></span>
+            <strong>{{ row.count }}</strong>
+          </li>
+        }
+      </ul>
+    </section>
+    <section class="surface padded" aria-labelledby="exposure-report">
+      <h2 id="exposure-report">Outstanding exposure</h2>
+      <p class="muted report-caption">Estimates on open claims, grouped by currency.</p>
+      <dl class="exposure-totals">
+        @for (row of report.exposure; track row.currency) {
+          <div><dt>{{ row.currency }} <small>{{ row.claims }} {{ row.claims === 1 ? 'claim' : 'claims' }}</small></dt>
+            <dd>{{ row.amountMinor / 100 | currency:row.currency:'code' }}</dd></div>
+        } @empty { <div><dt>No estimates recorded</dt></div> }
+      </dl>
+      <p class="coverage-note">{{ report.missingExposure }} of {{ report.openClaims }} open claims have no estimate.</p>
+    </section>
+  </div>
+  <section class="surface padded" aria-labelledby="team-report">
+    <h2 id="team-report">Staff activity</h2>
+    <p class="muted report-caption">Current assignments and completed actions in the last {{ report.days }} days.</p>
+    <table class="report-table">
+      <thead><tr><th scope="col">Staff member</th><th scope="col">Open claims</th><th scope="col">Decisions</th><th scope="col">Settlements</th></tr></thead>
+      <tbody>
+        @for (person of report.staff; track $index) {
+          <tr><th scope="row">{{ person.name }}</th><td>{{ person.openClaims }}</td><td>{{ person.decisions }}</td><td>{{ person.settlements }}</td></tr>
+        } @empty { <tr><td colspan="4">No staff accounts are available.</td></tr> }
+      </tbody>
+    </table>
+  </section>
+  <p class="muted report-updated">Updated {{ report.generatedAt | date:'d MMM y, HH:mm' }}</p>
+} @else {
+  <p class="state" role="status">Loading the report…</p>
+}

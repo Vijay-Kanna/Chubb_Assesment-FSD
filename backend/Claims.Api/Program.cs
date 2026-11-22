@@ -31,6 +31,7 @@ builder.Services.AddSingleton<JwtTokens>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<ClaimsService>();
+builder.Services.AddScoped<ReportsService>();
 builder.Services.AddHostedService<ClaimNotificationPublisher>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
@@ -79,6 +80,7 @@ app.UseAuthorization();
 app.UseAssessmentSwagger(apiTitle);
 app.MapLogin();
 app.MapClaims();
+app.MapReports();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

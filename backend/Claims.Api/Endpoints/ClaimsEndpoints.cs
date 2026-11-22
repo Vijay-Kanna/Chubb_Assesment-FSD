@@ -19,6 +19,13 @@ internal static class ClaimsEndpoints
         claims.MapGet("/{id:guid}", Get).Produces<ClaimView>().Produces(StatusCodes.Status404NotFound);
         claims.MapGet("/{id:guid}/history", History).Produces<HistoryView[]>().Produces(StatusCodes.Status404NotFound);
         claims.MapGet("/{id:guid}/messages", Messages).Produces<ClaimMessageView[]>().Produces(StatusCodes.Status404NotFound);
+        claims.MapGet("/{id:guid}/exposure", GetExposure).RequireAuthorization(Role.ClaimsStaff)
+            .WithSummary("Read the assigned staff member's exposure estimate")
+            .Produces<ExposureEstimate>().Produces(StatusCodes.Status404NotFound);
+        claims.MapPut("/{id:guid}/exposure", SetExposure).RequireAuthorization(Role.ClaimsStaff)
+            .WithSummary("Record the outstanding exposure estimate")
+            .Produces<ClaimView>().ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         claims.MapPost("/{id:guid}/pick-up", PickUp).RequireAuthorization(Role.ClaimsStaff)
             .Produces<ClaimView>().Produces(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         MapReviewMessage(claims, "/{id:guid}/questions", Role.ClaimsStaff, ClaimAction.QuestionAsked);
@@ -91,6 +98,32 @@ internal static class ClaimsEndpoints
         return messages is null ? Results.NotFound() : Results.Ok(messages);
     }
 
+    private static async Task<IResult> GetExposure(Guid id, ClaimsPrincipal user, ClaimsService service,
+        CancellationToken cancellationToken)
+    {
+        var estimate = await service.GetExposureAsync(id, UserId(user), cancellationToken);
+        return estimate is null ? Results.NotFound() : Results.Ok(estimate);
+    }
+
+    private static async Task<IResult> SetExposure(Guid id, SetExposureRequest request, ClaimsPrincipal user,
+        ClaimsService service, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (request.Amount is not { } amount || amount is < 0 or > 1_000_000_000 ||
+            decimal.Round(amount, 2) != amount)
+        {
+            errors["amount"] = ["Enter an amount from 0 to 1,000,000,000 with at most two decimal places."];
+        }
+        if (request.Currency is not { } currency || !Enum.IsDefined(currency))
+            errors["currency"] = ["Select a supported currency."];
+        if (errors.Count != 0)
+            return Results.ValidationProblem(errors);
+
+        var change = await service.SetExposureAsync(id, UserId(user), (long)(request.Amount!.Value * 100),
+            request.Currency!.Value, cancellationToken);
+        return ChangeResult(change, "An exposure estimate cannot be updated for a closed claim.");
+    }
+
     private static void MapReviewMessage(RouteGroupBuilder claims, string route, string role, ClaimAction action)
     {
         claims.MapPost(route, async (Guid id, ReviewMessage request, ClaimsPrincipal user, ClaimsService service,
@@ -134,4 +167,5 @@ internal static class ClaimsEndpoints
 
     private sealed record SubmitClaim(ClaimType? Type, DateOnly? IncidentDate, string? Description);
     private sealed record ReviewMessage(string? Body);
+    private sealed record SetExposureRequest(decimal? Amount, ExposureCurrency? Currency);
 }

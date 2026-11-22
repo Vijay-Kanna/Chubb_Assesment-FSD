@@ -12,12 +12,13 @@ import { Claim, ClaimMessage, HistoryEntry, ReviewAction, claimReference, claimU
 import { ClaimsClient, errorMessage } from '../core/api';
 import { Session } from '../core/session';
 import { StatusPill } from './status-pill';
+import { ClaimExposure } from './claim-exposure';
 
 const decisionLabels = { approve: 'Approve claim', reject: 'Reject claim', settle: 'Record settlement' };
 type Decision = keyof typeof decisionLabels;
 
 @Component({
-  imports: [DatePipe, RouterLink, FormField, NgIcon, StatusPill],
+  imports: [DatePipe, RouterLink, FormField, NgIcon, StatusPill, ClaimExposure],
   viewProviders: [provideIcons({
     lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
     lucideMessageCircle, lucideRefreshCw, lucideSend,

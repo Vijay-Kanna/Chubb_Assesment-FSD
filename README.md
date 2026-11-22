@@ -125,6 +125,14 @@ Open [Claims Workspace](http://127.0.0.1:4200/). Sign in as the demo claimant an
 
 The Angular dev server listens on loopback and proxies API requests over HTTPS with certificate validation. The app keeps the bearer token in memory, so a page reload requires signing in again. Angular route guards handle navigation. The APIs enforce roles and record ownership. To build the Angular app, run `npm run build`. A deployed static host would need HTTPS, SPA routing, and the same API path mappings as the development proxy.
 
+## Sample claims and staff reports
+
+With the Claims API running and `Demo__Password` set to the demo password, run `.\scripts\seed-demo-claims.ps1` from the repository root. The script creates eight fictional motor and property claims across both claimant accounts. It uses the regular API workflow and skips matching examples on subsequent runs.
+
+Sign in as `staff@example.test` and select **Reports**. The report shows the current status breakdown and workload, plus staff decisions and settlements over the selected 7-, 30-, or 90-day window. The Claims API serves the report at `GET /reports/overview`.
+
+Assigned staff can add or edit a claim's **Exposure estimate** on its review screen. The report totals recorded estimates for open claims by currency and shows how many open claims lack an estimate. Settled and rejected claims are excluded. Claimants can see their claim progress and conversation.
+
 ## Verification
 
 Run `dotnet test` from the repository root. Integration tests use the HTTP pipeline and temporary SQLite databases. They cover login, validation, role and ownership checks, approval and settlement, rejection, invalid transitions, and competing pickups and questions. The claim version guards concurrent updates. EF Core commits each workflow change, history entry, and any related message together.

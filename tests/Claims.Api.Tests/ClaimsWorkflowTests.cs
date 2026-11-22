@@ -257,6 +257,62 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         Assert.Equal(message.GetProperty("id").GetInt64(), entry.GetProperty("claimMessageId").GetInt64());
     }
 
+    [Fact]
+    public async Task Staff_report_counts_open_claims_and_estimates_without_exposing_claim_details()
+    {
+        var claimant = await Token("claimant");
+        var staff = await Token("staff");
+        var otherStaff = await Token("other-staff");
+        using var beforeResponse = await Request(HttpMethod.Get, "/reports/overview?days=7", staff);
+        Assert.Equal(HttpStatusCode.OK, beforeResponse.StatusCode);
+        var before = await Read(beforeResponse);
+        await ExpectStatus(HttpMethod.Get, "/reports/overview", claimant, HttpStatusCode.Forbidden);
+        await ExpectStatus(HttpMethod.Get, "/reports/overview?days=1", staff, HttpStatusCode.BadRequest);
+
+        var first = $"/claims/{await Submit(claimant)}";
+        await CheckStatus(HttpMethod.Post, $"{first}/pick-up", staff, "UnderReview");
+        await ExpectStatus(HttpMethod.Get, $"{first}/exposure", claimant, HttpStatusCode.Forbidden);
+        await ExpectStatus(HttpMethod.Put, $"{first}/exposure", otherStaff, HttpStatusCode.NotFound,
+            new { amount = 2000, currency = "MYR" });
+        await ExpectStatus(HttpMethod.Put, $"{first}/exposure", staff, HttpStatusCode.BadRequest,
+            new { amount = 1250.255m, currency = "MYR" });
+        await ExpectStatus(HttpMethod.Put, $"{first}/exposure", staff, HttpStatusCode.OK,
+            new { amount = 1250.25m, currency = "MYR" });
+        await CheckStatus(HttpMethod.Post, $"{first}/approve", staff, "Approved");
+
+        var second = $"/claims/{await Submit(claimant)}";
+        await CheckStatus(HttpMethod.Post, $"{second}/pick-up", otherStaff, "UnderReview");
+        await ExpectStatus(HttpMethod.Put, $"{second}/exposure", otherStaff, HttpStatusCode.OK,
+            new { amount = 875, currency = "SGD" });
+        await CheckStatus(HttpMethod.Post, $"{second}/reject", otherStaff, "Rejected");
+        await ExpectStatus(HttpMethod.Put, $"{second}/exposure", otherStaff, HttpStatusCode.Conflict,
+            new { amount = 300, currency = "SGD" });
+        _ = await Submit(claimant);
+
+        using var afterResponse = await Request(HttpMethod.Get, "/reports/overview?days=7", staff);
+        Assert.Equal(HttpStatusCode.OK, afterResponse.StatusCode);
+        var after = await Read(afterResponse);
+        Assert.Equal(7, after.GetProperty("days").GetInt32());
+        Assert.Equal(before.GetProperty("openClaims").GetInt32() + 2, after.GetProperty("openClaims").GetInt32());
+        Assert.Equal(before.GetProperty("missingExposure").GetInt32() + 1, after.GetProperty("missingExposure").GetInt32());
+        var exposure = Assert.Single(after.GetProperty("exposure").EnumerateArray());
+        Assert.Equal("MYR", exposure.GetProperty("currency").GetString());
+        Assert.Equal(125025, exposure.GetProperty("amountMinor").GetInt64());
+        Assert.Equal(1, exposure.GetProperty("claims").GetInt32());
+
+        var beforeDecisions = before.GetProperty("staff").EnumerateArray().Sum(row => row.GetProperty("decisions").GetInt32());
+        var afterDecisions = after.GetProperty("staff").EnumerateArray().Sum(row => row.GetProperty("decisions").GetInt32());
+        Assert.Equal(beforeDecisions + 2, afterDecisions);
+        Assert.DoesNotContain("description", after.GetRawText(), StringComparison.OrdinalIgnoreCase);
+
+        using var history = await Request(HttpMethod.Get, $"{first}/history", staff);
+        Assert.Contains((await Read(history)).EnumerateArray(), entry =>
+            entry.GetProperty("action").GetString() == "ExposureUpdated");
+        using var claimantHistory = await Request(HttpMethod.Get, $"{first}/history", claimant);
+        Assert.DoesNotContain((await Read(claimantHistory)).EnumerateArray(), entry =>
+            entry.GetProperty("action").GetString() == "ExposureUpdated");
+    }
+
     private async Task<JsonElement> CheckStatus(HttpMethod method, string path, string token, string expected, string? message = null)
     {
         using var response = await Request(method, path, token, message is null ? null : new { body = message });

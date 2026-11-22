@@ -2,12 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { email, form, FormField, maxLength, required, submit } from '@angular/forms/signals';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideArrowRight, lucideShieldCheck } from '@ng-icons/lucide';
+import { lucideArrowRight, lucideEye, lucideEyeOff, lucideShieldCheck } from '@ng-icons/lucide';
 import { Session } from '../core/session';
 
 @Component({
   imports: [FormField, NgIcon],
-  viewProviders: [provideIcons({ lucideArrowRight, lucideShieldCheck })],
+  viewProviders: [provideIcons({ lucideArrowRight, lucideEye, lucideEyeOff, lucideShieldCheck })],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -15,6 +15,7 @@ export class Login {
   private readonly session = inject(Session);
   private readonly credentials = signal({ email: '', password: '' });
   protected readonly error = signal('');
+  protected readonly showPassword = signal(false);
   protected readonly login = form(this.credentials, fields => {
     required(fields.email, { message: 'Enter your email address.' });
     email(fields.email, { message: 'Enter a valid email address.' });
@@ -26,6 +27,10 @@ export class Login {
   protected selectAccount(email: string) {
     this.error.set('');
     this.credentials.update(current => ({ ...current, email }));
+  }
+
+  protected togglePassword() {
+    this.showPassword.update(value => !value);
   }
 
   protected signIn(event: Event) {

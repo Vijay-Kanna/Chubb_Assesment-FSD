@@ -2,6 +2,7 @@ namespace Claims.Api.Domain;
 
 public enum ClaimStatus { Submitted, UnderReview, AwaitingInformation, Approved, Rejected, Settled }
 public enum ClaimType { Motor, Property }
+public enum ExposureCurrency { MYR, SGD, AUD, HKD, NZD, USD }
 
 public sealed class Claim
 {
@@ -17,6 +18,8 @@ public sealed class Claim
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public int Version { get; private set; }
+    public long? EstimatedExposureMinor { get; private set; }
+    public ExposureCurrency? EstimatedExposureCurrency { get; private set; }
 
     public static Claim Submit(Guid claimantId, ClaimType type, DateOnly incidentDate, string description, DateTime now) =>
         new()
@@ -50,6 +53,20 @@ public sealed class Claim
     public bool TryReject(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.Rejected, now);
 
     public bool TrySettle(DateTime now) => TryMove(ClaimStatus.Approved, ClaimStatus.Settled, now);
+
+    public bool TrySetExposure(long amountMinor, ExposureCurrency currency, DateTime now)
+    {
+        if (AssignedStaffId is null || Status is ClaimStatus.Rejected or ClaimStatus.Settled)
+            return false;
+        if (EstimatedExposureMinor == amountMinor && EstimatedExposureCurrency == currency)
+            return true;
+
+        EstimatedExposureMinor = amountMinor;
+        EstimatedExposureCurrency = currency;
+        UpdatedAt = now;
+        Version++;
+        return true;
+    }
 
     private bool TryMove(ClaimStatus requiredStatus, ClaimStatus nextStatus, DateTime now)
     {

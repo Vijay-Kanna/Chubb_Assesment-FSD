@@ -23,6 +23,7 @@ export const historyLabels: Record<string, string> = {
   Approved: 'Claim approved',
   Rejected: 'Claim rejected',
   Settled: 'Settlement recorded',
+  ExposureUpdated: 'Exposure estimate updated',
 };
 
 export interface Claim {

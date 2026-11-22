@@ -36,6 +36,12 @@ namespace Claims.Api.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EstimatedExposureCurrency")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("EstimatedExposureMinor")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateOnly>("IncidentDate")
                         .HasColumnType("TEXT");
 

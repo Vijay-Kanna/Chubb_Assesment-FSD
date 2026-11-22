@@ -1,6 +1,6 @@
 namespace Claims.Api.Domain;
 
-public enum ClaimAction { Submitted, Assigned, QuestionAsked, ReplyReceived, Approved, Rejected, Settled }
+public enum ClaimAction { Submitted, Assigned, QuestionAsked, ReplyReceived, Approved, Rejected, Settled, ExposureUpdated }
 
 public sealed class ClaimHistory
 {

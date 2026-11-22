@@ -13,6 +13,7 @@ export const routes: Routes = [
   { path: 'claims/:id', title: 'Claim details | Claims Workspace', canActivate: [claimant], loadComponent: detail },
   { path: 'staff', title: 'Staff queue | Claims Workspace', canActivate: [staff], loadComponent: list },
   { path: 'staff/:id', title: 'Claim review | Claims Workspace', canActivate: [staff], loadComponent: detail },
+  { path: 'reports', title: 'Claims reports | Claims Workspace', canActivate: [staff], loadComponent: () => import('./reports/reports').then(module => module.Reports) },
   { path: 'notifications', title: 'Notifications | Claims Workspace', canActivate: [claimant], loadComponent: () => import('./notifications/inbox').then(module => module.Inbox) },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: '**', redirectTo: 'login' },
