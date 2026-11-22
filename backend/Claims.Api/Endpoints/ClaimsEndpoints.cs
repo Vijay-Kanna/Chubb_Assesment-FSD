@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Claims.Api.Application;
 using Claims.Api.Domain;
+using Claim = Claims.Api.Domain.Claim;
 
 namespace Claims.Api.Endpoints;
 
@@ -31,7 +32,10 @@ internal static class ClaimsEndpoints
         MapReviewMessage(claims, "/{id:guid}/questions", Role.ClaimsStaff, ClaimAction.QuestionAsked);
         MapReviewMessage(claims, "/{id:guid}/replies", Role.Claimant, ClaimAction.ReplyReceived);
         MapReviewAction(claims, "/{id:guid}/approve", ClaimAction.Approved);
-        MapReviewAction(claims, "/{id:guid}/reject", ClaimAction.Rejected);
+        MapRejection(claims, HttpMethods.Post, "/{id:guid}/reject", ClaimAction.Rejected,
+            "Reject a claim with a claimant-facing explanation");
+        MapRejection(claims, HttpMethods.Put, "/{id:guid}/rejection-reason", ClaimAction.RejectionReasonRecorded,
+            "Record the missing explanation for a previously rejected claim");
         MapReviewAction(claims, "/{id:guid}/settle", ClaimAction.Settled);
     }
 
@@ -154,6 +158,30 @@ internal static class ClaimsEndpoints
             .Produces(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
     }
 
+    private static void MapRejection(RouteGroupBuilder claims, string method, string route, ClaimAction action, string summary)
+    {
+        claims.MapMethods(route, [method], async (Guid id, RejectionRequest request, ClaimsPrincipal user,
+            ClaimsService service, CancellationToken cancellationToken) =>
+        {
+            var reason = request.Reason?.Trim();
+            if (string.IsNullOrEmpty(reason) || reason.Length > Claim.MaxRejectionReasonLength)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["reason"] = [$"Enter a rejection reason of up to {Claim.MaxRejectionReasonLength} characters."]
+                });
+            }
+
+            var change = await service.ReviewAsync(id, UserId(user), action, reason, cancellationToken);
+            var conflict = action == ClaimAction.RejectionReasonRecorded
+                ? "A reason can only be added to a rejected claim that has no recorded reason."
+                : ReviewConflict;
+            return ChangeResult(change, conflict);
+        }).RequireAuthorization(Role.ClaimsStaff).WithSummary(summary).Produces<ClaimView>()
+            .ProducesValidationProblem().Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
     private const string ReviewConflict = "This action is unavailable for the current claim status.";
 
     private static IResult ChangeResult(ClaimChange change, string conflictTitle) => change.Outcome switch
@@ -167,5 +195,6 @@ internal static class ClaimsEndpoints
 
     private sealed record SubmitClaim(ClaimType? Type, DateOnly? IncidentDate, string? Description);
     private sealed record ReviewMessage(string? Body);
+    private sealed record RejectionRequest(string? Reason);
     private sealed record SetExposureRequest(decimal? Amount, ExposureCurrency? Currency);
 }

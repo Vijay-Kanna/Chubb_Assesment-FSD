@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
-  lucideMessageCircle, lucideRefreshCw, lucideSend,
+  lucideMail, lucideMessageCircle, lucidePhone, lucideRefreshCw, lucideSend,
 } from '@ng-icons/lucide';
 import { Claim, ClaimMessage, HistoryEntry, ReviewAction, claimReference, claimUrl, historyLabels } from '../core/claims';
 import { ClaimsClient, errorMessage } from '../core/api';
@@ -14,14 +14,19 @@ import { Session } from '../core/session';
 import { StatusPill } from './status-pill';
 import { ClaimExposure } from './claim-exposure';
 
-const decisionLabels = { approve: 'Approve claim', reject: 'Reject claim', settle: 'Record settlement' };
+const decisionLabels = {
+  approve: 'Approve claim',
+  reject: 'Reject claim',
+  settle: 'Record settlement',
+  'rejection-reason': 'Add decision reason',
+};
 type Decision = keyof typeof decisionLabels;
 
 @Component({
   imports: [DatePipe, RouterLink, FormField, NgIcon, StatusPill, ClaimExposure],
   viewProviders: [provideIcons({
     lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
-    lucideMessageCircle, lucideRefreshCw, lucideSend,
+    lucideMail, lucideMessageCircle, lucidePhone, lucideRefreshCw, lucideSend,
   })],
   templateUrl: './claim-detail.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +49,11 @@ export class ClaimDetail {
   protected readonly messageForm = form(this.draft, fields => {
     required(fields.body, { message: 'Enter a message.' });
     maxLength(fields.body, 2000);
+  });
+  private readonly rejectionDraft = linkedSignal({ source: this.id, computation: () => ({ reason: '' }) });
+  protected readonly rejectionForm = form(this.rejectionDraft, fields => {
+    required(fields.reason, { message: 'Enter a reason for the decision.' });
+    maxLength(fields.reason, 1000, { message: 'Use at most 1,000 characters.' });
   });
 
   protected readonly claim = httpResource<Claim>(() => {
@@ -101,7 +111,8 @@ export class ClaimDetail {
         this.messages.reload();
         this.history.reload();
         this.pendingDecision.set(null);
-        if (body) this.draft.set({ body: '' });
+        if (action === 'questions' || action === 'replies') this.draft.set({ body: '' });
+        if (action === 'reject' || action === 'rejection-reason') this.rejectionDraft.set({ reason: '' });
         this.feedback.set(action === 'questions' || action === 'replies' ? 'Message sent.' : 'Claim updated.');
       }
     } catch (error) {
@@ -124,6 +135,19 @@ export class ClaimDetail {
         return;
       }
       await this.change(this.session.isStaff() ? 'questions' : 'replies', body);
+    });
+  }
+
+  protected recordRejection(event: Event, action: 'reject' | 'rejection-reason') {
+    event.preventDefault();
+    this.error.set('');
+    void submit(this.rejectionForm, async () => {
+      const reason = this.rejectionDraft().reason.trim();
+      if (!reason) {
+        this.error.set('Enter a reason for the decision.');
+        return;
+      }
+      await this.change(action, reason);
     });
   }
 }

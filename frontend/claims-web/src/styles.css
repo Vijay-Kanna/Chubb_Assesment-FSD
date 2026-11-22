@@ -116,6 +116,14 @@ button:disabled { opacity: .56; cursor: default; }
 .review-buttons { display: flex; flex-wrap: wrap; gap: .45rem; }
 .estimate-amount { margin-top: .4rem; font-size: 1.15rem; font-weight: 800; }
 .estimate-button { margin-top: .65rem; }
+.decision-panel { border-top: 3px solid #a34a62; }
+.decision-result { margin: .35rem 0 .8rem; color: #87243a; font-weight: 800; }
+.decision-panel h3 + p { margin-top: .3rem; }
+.decision-support { border-top: 1px solid var(--line); margin-top: 1.05rem; padding-top: .8rem; }
+.decision-contacts { display: flex; flex-wrap: wrap; gap: .45rem 1.15rem; margin-top: .6rem; }
+.decision-contacts a { min-height: 42px; overflow-wrap: anywhere; }
+.contact-page { font-size: .8rem; margin-top: .25rem; }
+.review-panel .form-helper { font-size: .78rem; margin: -.45rem 0 .15rem; }
 .timeline, .conversation, .notice-list { list-style: none; padding: 0; margin: 0; }
 .timeline li { margin-left: .3rem; padding: .15rem 0 .8rem 1rem; border-left: 1px solid #d8def0; display: flex; flex-direction: column; position: relative; }
 .timeline li:last-child { padding-bottom: .15rem; }

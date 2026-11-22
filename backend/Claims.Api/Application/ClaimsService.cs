@@ -123,20 +123,21 @@ internal sealed class ClaimsService(ClaimsDbContext db, TimeProvider clock)
             ClaimAction.QuestionAsked => claim.TryAskQuestion(now),
             ClaimAction.ReplyReceived => claim.TryReply(now),
             ClaimAction.Approved => claim.TryApprove(now),
-            ClaimAction.Rejected => claim.TryReject(now),
+            ClaimAction.Rejected => body is not null && claim.TryReject(body, now),
             ClaimAction.Settled => claim.TrySettle(now),
+            ClaimAction.RejectionReasonRecorded => body is not null && claim.TryRecordMissingRejectionReason(body, now),
             _ => throw new ArgumentOutOfRangeException(nameof(action))
         };
         if (!changed)
             return new(ClaimChangeOutcome.Conflict);
 
-        var message = body is null ? null : new ClaimMessage
+        var message = action is ClaimAction.QuestionAsked or ClaimAction.ReplyReceived ? new ClaimMessage
         {
             ClaimId = id,
             SenderUserId = actorId,
-            Body = body,
+            Body = body!,
             SentAt = now
-        };
+        } : null;
         AddHistory(claim, actorId, action, previousStatus, now, message);
         QueueNotification(claim, action, now);
         return await SaveChangeAsync(claim, cancellationToken);
@@ -211,10 +212,11 @@ internal enum ClaimChangeOutcome { Changed, NotFound, Conflict }
 internal sealed record ClaimChange(ClaimChangeOutcome Outcome, ClaimView? Claim = null);
 
 internal sealed record ClaimView(Guid Id, Guid ClaimantId, Guid? AssignedStaffId, ClaimType Type,
-    DateOnly IncidentDate, string Description, ClaimStatus Status, DateTime CreatedAt, DateTime UpdatedAt)
+    DateOnly IncidentDate, string Description, ClaimStatus Status, DateTime CreatedAt, DateTime UpdatedAt,
+    string? RejectionReason)
 {
     public static ClaimView From(Claim claim) => new(claim.Id, claim.ClaimantId, claim.AssignedStaffId, claim.Type,
-        claim.IncidentDate, claim.Description, claim.Status, claim.CreatedAt, claim.UpdatedAt);
+        claim.IncidentDate, claim.Description, claim.Status, claim.CreatedAt, claim.UpdatedAt, claim.RejectionReason);
 }
 
 internal sealed record HistoryView(long Id, Guid ActorUserId, ClaimAction Action, ClaimStatus? PreviousStatus,

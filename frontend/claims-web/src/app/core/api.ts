@@ -12,7 +12,12 @@ export class ClaimsClient {
   }
 
   review(id: string, action: ReviewAction, body?: string) {
-    return firstValueFrom(this.http.post<Claim>(claimUrl(id) + '/' + action, body ? { body } : null));
+    const url = claimUrl(id) + '/' + action;
+    if (action === 'rejection-reason') {
+      return firstValueFrom(this.http.put<Claim>(url, { reason: body }));
+    }
+    const payload = action === 'reject' ? { reason: body } : body ? { body } : null;
+    return firstValueFrom(this.http.post<Claim>(url, payload));
   }
 
   saveExposure(id: string, amount: number, currency: string) {

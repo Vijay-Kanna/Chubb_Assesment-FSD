@@ -31,6 +31,29 @@
   @if (feedback()) { <p class="success-line" role="status">{{ feedback() }}</p> }
   <div class="detail-grid">
     <div class="detail-main">
+      @if (record.status === 'Rejected') {
+        <section class="surface padded decision-panel" aria-labelledby="decision-heading">
+          <h2 id="decision-heading">Claim decision</h2>
+          <p class="decision-result">This claim was declined.</p>
+          @if (record.rejectionReason; as reason) {
+            <h3>Reason for the decision</h3>
+            <p class="user-text">{{ reason }}</p>
+          } @else {
+            <p class="muted">A written reason is unavailable for this decision.</p>
+          }
+          @if (!session.isStaff()) {
+            <div class="decision-support">
+              <h3>Questions about this decision?</h3>
+              <p class="muted">For help with a real policy or claim, contact Chubb Malaysia Customer Service. Have your policy or claim number ready.</p>
+              <div class="decision-contacts">
+                <a class="text-link" href="tel:+60320583000"><ng-icon name="lucidePhone" /> +60 3-2058 3000</a>
+                <a class="text-link" href="mailto:Inquiries.MY@chubb.com"><ng-icon name="lucideMail" /> Inquiries.MY@chubb.com</a>
+              </div>
+              <a class="text-link contact-page" href="https://www.chubb.com/my-en/contact-us.html">Customer service hours and contact options</a>
+            </div>
+          }
+        </section>
+      }
       <section class="surface padded" aria-labelledby="incident-heading">
         <h2 id="incident-heading" class="section-title"><ng-icon name="lucideClipboardList" /> Incident details</h2>
         <p class="user-text">{{ record.description }}</p>
@@ -82,11 +105,30 @@
             <p class="muted">Assign this claim to yourself to start a review.</p>
             <button class="primary" type="button" (click)="change('pick-up')" [disabled]="busy()">Pick up claim</button>
           } @else if (pendingDecision(); as decision) {
-            <p>Confirm that you want to {{ decision === 'settle' ? 'record settlement for' : decision }} this claim.</p>
-            <div class="review-buttons">
-              <button class="primary" [class.danger]="decision === 'reject'" type="button" (click)="change(decision)" [disabled]="busy()">Confirm {{ decision === 'settle' ? 'settlement' : decision === 'approve' ? 'approval' : 'rejection' }}</button>
-              <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
-            </div>
+            @if (decision === 'reject' || decision === 'rejection-reason') {
+              <form class="form-stack" (submit)="recordRejection($event, decision)" novalidate>
+                <label class="field">Reason for the decision
+                  <textarea rows="4" [formField]="rejectionForm.reason" aria-describedby="rejection-help"
+                    placeholder="Explain the policy or assessment finding behind this decision."></textarea>
+                </label>
+                <p class="muted form-helper" id="rejection-help">The claimant will see this explanation. Use plain language.</p>
+                @if (rejectionForm.reason().touched() && rejectionForm.reason().invalid()) {
+                  <p class="field-error" role="alert">{{ rejectionForm.reason().errors()[0].message }}</p>
+                }
+                <div class="review-buttons">
+                  <button class="primary" [class.danger]="decision === 'reject'" type="submit" [disabled]="busy() || rejectionForm().submitting()">
+                    {{ decision === 'reject' ? 'Confirm rejection' : 'Save decision reason' }}
+                  </button>
+                  <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
+                </div>
+              </form>
+            } @else {
+              <p>Confirm that you want to {{ decision === 'settle' ? 'record settlement for' : 'approve' }} this claim.</p>
+              <div class="review-buttons">
+                <button class="primary" type="button" (click)="change(decision)" [disabled]="busy()">Confirm {{ decision === 'settle' ? 'settlement' : 'approval' }}</button>
+                <button class="quiet" type="button" (click)="pendingDecision.set(null)" [disabled]="busy()">Cancel</button>
+              </div>
+            }
           } @else if (isAssigned() && record.status === 'UnderReview') {
             <p class="muted">Ask a question in the conversation or record your decision.</p>
             <div class="review-buttons">
@@ -98,6 +140,9 @@
             <button class="primary" type="button" (click)="pendingDecision.set('settle')" [disabled]="busy()">{{ decisionLabels.settle }}</button>
           } @else if (record.status === 'AwaitingInformation') {
             <p class="muted">Waiting for the claimant to reply.</p>
+          } @else if (isAssigned() && record.status === 'Rejected' && !record.rejectionReason) {
+            <p class="muted">Record the original explanation so the claimant can review it.</p>
+            <button class="quiet" type="button" (click)="pendingDecision.set('rejection-reason')">{{ decisionLabels['rejection-reason'] }}</button>
           } @else {
             <p class="muted">Review is complete.</p>
           }

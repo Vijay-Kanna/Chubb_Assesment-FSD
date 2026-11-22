@@ -16,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 const string apiTitle = "Claims API";
 
 builder.Services.AddProblemDetails();
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 builder.Services.AddAssessmentOpenApi(apiTitle);
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));

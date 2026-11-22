@@ -6,6 +6,8 @@ public enum ExposureCurrency { MYR, SGD, AUD, HKD, NZD, USD }
 
 public sealed class Claim
 {
+    public const int MaxRejectionReasonLength = 1000;
+
     private Claim() { }
 
     public Guid Id { get; private set; }
@@ -20,6 +22,7 @@ public sealed class Claim
     public int Version { get; private set; }
     public long? EstimatedExposureMinor { get; private set; }
     public ExposureCurrency? EstimatedExposureCurrency { get; private set; }
+    public string? RejectionReason { get; private set; }
 
     public static Claim Submit(Guid claimantId, ClaimType type, DateOnly incidentDate, string description, DateTime now) =>
         new()
@@ -50,7 +53,24 @@ public sealed class Claim
 
     public bool TryApprove(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.Approved, now);
 
-    public bool TryReject(DateTime now) => TryMove(ClaimStatus.UnderReview, ClaimStatus.Rejected, now);
+    public bool TryReject(string reason, DateTime now)
+    {
+        if (!TryMove(ClaimStatus.UnderReview, ClaimStatus.Rejected, now))
+            return false;
+
+        RejectionReason = reason;
+        return true;
+    }
+
+    public bool TryRecordMissingRejectionReason(string reason, DateTime now)
+    {
+        if (Status != ClaimStatus.Rejected || RejectionReason is not null)
+            return false;
+
+        RejectionReason = reason;
+        UpdateVersion(now);
+        return true;
+    }
 
     public bool TrySettle(DateTime now) => TryMove(ClaimStatus.Approved, ClaimStatus.Settled, now);
 
@@ -63,8 +83,7 @@ public sealed class Claim
 
         EstimatedExposureMinor = amountMinor;
         EstimatedExposureCurrency = currency;
-        UpdatedAt = now;
-        Version++;
+        UpdateVersion(now);
         return true;
     }
 
@@ -80,6 +99,11 @@ public sealed class Claim
     private void MoveTo(ClaimStatus status, DateTime now)
     {
         Status = status;
+        UpdateVersion(now);
+    }
+
+    private void UpdateVersion(DateTime now)
+    {
         UpdatedAt = now;
         Version++;
     }

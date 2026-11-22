@@ -51,3 +51,9 @@ I asked Codex to add sample claims, test the app, add a password visibility butt
 Codex added a staff-only report for claim status, staff workload and decisions, and outstanding exposure. It modeled exposure as an optional, currency-specific estimate entered by the assigned staff member. The report groups the estimates for open claims by currency and counts claims with missing estimates. The claim owner still sees their workflow history. Staff estimate changes appear in staff history.
 
 Codex ran 13 passing backend tests with Kafka, built Angular, and tested the password toggle, staff reports, estimate editing, and seeded claimant notifications in the browser. The tests verified that a claimant cannot read staff reports or estimates, that unrelated staff cannot edit estimates, and that a closed claim's estimate does not contribute to outstanding exposure.
+
+## Claim rejection review
+
+During submission review, I pointed out that the claimant would see a rejection without a reason or a customer service contact. I asked Codex to improve that experience. Codex made a claimant-facing reason required and added a decision panel with phone and email links for Chubb Malaysia Customer Service.
+
+Codex kept the reason on the protected claim, with only the claim reference and event metadata sent through Kafka. Assigned staff can record a missing reason once for an older rejection. The demo seed uses that path to backfill the existing fictional sample. Codex tested the required reason, preservation of the recorded decision, and both roles in the browser. It confirmed the claimant could open the rejected claim from the notification and see the recorded explanation.

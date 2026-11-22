@@ -45,6 +45,10 @@ namespace Claims.Api.Persistence.Migrations
                     b.Property<DateOnly>("IncidentDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("TEXT");

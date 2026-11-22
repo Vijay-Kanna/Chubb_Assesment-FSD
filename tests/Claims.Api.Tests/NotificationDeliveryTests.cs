@@ -110,9 +110,11 @@ public sealed class NotificationDeliveryTests
             var rejectedClaim = await Submit(claims, claimant);
             var rejectedId = rejectedClaim.GetProperty("id").GetGuid();
             await Post(claims, $"/claims/{rejectedId:D}/pick-up", staff);
-            await Post(claims, $"/claims/{rejectedId:D}/reject", staff);
+            const string reason = "The damage occurred before the policy began.";
+            await Post(claims, $"/claims/{rejectedId:D}/reject", staff, new { reason });
             var rejected = Assert.Single(await WaitForType(notifications, claimant, rejectedId, "Rejected"));
             Assert.Equal("Your claim was rejected.", rejected.GetProperty("message").GetString());
+            Assert.DoesNotContain(reason, rejected.GetRawText(), StringComparison.Ordinal);
             Assert.Empty(await List(notifications, other));
         }
         finally

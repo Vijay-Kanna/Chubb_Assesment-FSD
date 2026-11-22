@@ -2,18 +2,23 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Claims.Api.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Claims.Api.Tests;
 
 public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
 {
     private readonly HttpClient client;
+    private readonly ClaimsApiFactory factory;
 
     public ClaimsWorkflowTests(ClaimsApiFactory factory)
     {
+        this.factory = factory;
         client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"),
@@ -191,17 +196,42 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.BadRequest, new { body = " " });
         await CheckStatus(HttpMethod.Post, $"{path}/questions", staff, "AwaitingInformation", "Is there a witness?");
         await ExpectStatus(HttpMethod.Post, $"{path}/approve", staff, HttpStatusCode.Conflict);
-        await ExpectStatus(HttpMethod.Post, $"{path}/reject", staff, HttpStatusCode.Conflict);
+        const string reason = "The assessment found the damage occurred before the policy began.";
+        var decision = new { reason };
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", staff, HttpStatusCode.Conflict, decision);
         await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.Conflict, new { body = "A second outstanding question" });
         await CheckStatus(HttpMethod.Post, $"{path}/replies", claimant, "UnderReview", "No witness.");
-        await CheckStatus(HttpMethod.Post, $"{path}/reject", staff, "Rejected");
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", staff, HttpStatusCode.BadRequest);
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", staff, HttpStatusCode.BadRequest, new { reason = " " });
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", staff, HttpStatusCode.BadRequest, new { reason = new string('x', 1001) });
+        using var rejected = await Request(HttpMethod.Post, $"{path}/reject", staff, decision);
+        Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
         await ExpectStatus(HttpMethod.Post, $"{path}/settle", staff, HttpStatusCode.Conflict);
         await ExpectStatus(HttpMethod.Post, $"{path}/questions", staff, HttpStatusCode.Conflict, new { body = "A late question" });
-        await CheckStatus(HttpMethod.Get, path, claimant, "Rejected");
+        var rejectedClaim = await CheckStatus(HttpMethod.Get, path, claimant, "Rejected");
+        Assert.Equal(reason, rejectedClaim.GetProperty("rejectionReason").GetString());
+        await ExpectStatus(HttpMethod.Put, $"{path}/rejection-reason", staff, HttpStatusCode.Conflict, new { reason = "Changed explanation." });
+        using var conversation = await Request(HttpMethod.Get, $"{path}/messages", claimant);
+        Assert.Equal(2, (await Read(conversation)).GetArrayLength());
 
         using var history = await Request(HttpMethod.Get, $"{path}/history", claimant);
         Assert.Equal(["Submitted", "Assigned", "QuestionAsked", "ReplyReceived", "Rejected"],
             (await Read(history)).EnumerateArray().Select(entry => entry.GetProperty("action").GetString()));
+
+        // Simulate a rejected claim saved by the version that did not record a reason.
+        var claimId = rejectedClaim.GetProperty("id").GetGuid();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClaimsDbContext>();
+            await db.Claims.Where(claim => claim.Id == claimId)
+                .ExecuteUpdateAsync(set => set.SetProperty(claim => claim.RejectionReason, (string?)null));
+        }
+        await ExpectStatus(HttpMethod.Put, $"{path}/rejection-reason", staff, HttpStatusCode.OK, decision);
+        var updated = await CheckStatus(HttpMethod.Get, path, claimant, "Rejected");
+        Assert.Equal(reason, updated.GetProperty("rejectionReason").GetString());
+        using var updatedHistory = await Request(HttpMethod.Get, $"{path}/history", claimant);
+        Assert.Equal("RejectionReasonRecorded",
+            (await Read(updatedHistory)).EnumerateArray().Last().GetProperty("action").GetString());
     }
 
     [Fact]
@@ -227,7 +257,8 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         await ExpectStatus(HttpMethod.Post, $"{path}/replies", staff, HttpStatusCode.Forbidden, message);
         await CheckStatus(HttpMethod.Post, $"{path}/replies", claimant, "UnderReview", "The bumper.");
         await ExpectStatus(HttpMethod.Post, $"{path}/approve", otherStaff, HttpStatusCode.NotFound);
-        await ExpectStatus(HttpMethod.Post, $"{path}/reject", otherStaff, HttpStatusCode.NotFound);
+        await ExpectStatus(HttpMethod.Post, $"{path}/reject", otherStaff, HttpStatusCode.NotFound, new { reason = "A proposed reason." });
+        await ExpectStatus(HttpMethod.Put, $"{path}/rejection-reason", claimant, HttpStatusCode.Forbidden, new { reason = "A proposed reason." });
         await ExpectStatus(HttpMethod.Post, $"{path}/approve", claimant, HttpStatusCode.Forbidden);
         await CheckStatus(HttpMethod.Post, $"{path}/approve", staff, "Approved");
         await ExpectStatus(HttpMethod.Post, $"{path}/settle", otherStaff, HttpStatusCode.NotFound);
@@ -284,7 +315,8 @@ public sealed class ClaimsWorkflowTests : IClassFixture<ClaimsApiFactory>
         await CheckStatus(HttpMethod.Post, $"{second}/pick-up", otherStaff, "UnderReview");
         await ExpectStatus(HttpMethod.Put, $"{second}/exposure", otherStaff, HttpStatusCode.OK,
             new { amount = 875, currency = "SGD" });
-        await CheckStatus(HttpMethod.Post, $"{second}/reject", otherStaff, "Rejected");
+        await ExpectStatus(HttpMethod.Post, $"{second}/reject", otherStaff, HttpStatusCode.OK,
+            new { reason = "The reported damage is outside the policy period." });
         await ExpectStatus(HttpMethod.Put, $"{second}/exposure", otherStaff, HttpStatusCode.Conflict,
             new { amount = 300, currency = "SGD" });
         _ = await Submit(claimant);

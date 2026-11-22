@@ -31,7 +31,7 @@ $samples = @(
     @{ Owner = 'claimant'; Type = 'Motor'; Age = 7; Description = 'Demo - Side mirror damaged in a parking incident.'; Status = 'UnderReview'; Staff = 'staff'; Amount = 1500; Currency = 'MYR' }
     @{ Owner = 'claimant'; Type = 'Property'; Age = 11; Description = 'Demo - A power surge damaged two appliances.'; Status = 'Approved'; Staff = 'other-staff'; Amount = 1200; Currency = 'SGD' }
     @{ Owner = 'claimant'; Type = 'Motor'; Age = 16; Description = 'Demo - Front fender damage after an intersection collision.'; Status = 'Settled'; Staff = 'staff'; Amount = 3200; Currency = 'MYR' }
-    @{ Owner = 'claimant'; Type = 'Motor'; Age = 19; Description = 'Demo - Windscreen damage reported after a previous repair.'; Status = 'Rejected'; Staff = 'other-staff'; Amount = 600; Currency = 'MYR' }
+    @{ Owner = 'claimant'; Type = 'Motor'; Age = 19; Description = 'Demo - Windscreen damage reported after a previous repair.'; Status = 'Rejected'; Staff = 'other-staff'; Amount = 600; Currency = 'MYR'; Reason = 'The assessment found that the windscreen damage occurred before cover began under the sample policy.' }
     @{ Owner = 'other-claimant'; Type = 'Property'; Age = 4; Description = 'Demo - Storm runoff damaged a utility room.'; Status = 'UnderReview'; Staff = 'other-staff'; Amount = 2600; Currency = 'SGD' }
     @{ Owner = 'other-claimant'; Type = 'Motor'; Age = 1; Description = 'Demo - Passenger door dent discovered after street parking.'; Status = 'Submitted' }
 )
@@ -49,7 +49,12 @@ foreach ($sample in $samples) {
     $claimant = $accounts[$sample.Owner]
     $existing = $known["$($sample.Owner)|$($sample.Description)"]
     if ($existing) {
-        [pscustomobject]@{ Id = $existing.id; Owner = $sample.Owner; Status = $existing.status; Result = 'Existing' }
+        $result = 'Existing'
+        if ($sample.Reason -and $existing.status -eq 'Rejected' -and -not $existing.rejectionReason) {
+            $existing = Invoke-ClaimsRequest 'Put' "/claims/$($existing.id)/rejection-reason" $accounts[$sample.Staff] @{ reason = $sample.Reason }
+            $result = 'Updated'
+        }
+        [pscustomobject]@{ Id = $existing.id; Owner = $sample.Owner; Status = $existing.status; Result = $result }
         continue
     }
 
@@ -68,7 +73,7 @@ foreach ($sample in $samples) {
         switch ($sample.Status) {
             'AwaitingInformation' { $claim = Invoke-ClaimsRequest 'Post' "$path/questions" $staff @{ body = $sample.Question } }
             'Approved' { $claim = Invoke-ClaimsRequest 'Post' "$path/approve" $staff $null }
-            'Rejected' { $claim = Invoke-ClaimsRequest 'Post' "$path/reject" $staff $null }
+            'Rejected' { $claim = Invoke-ClaimsRequest 'Post' "$path/reject" $staff @{ reason = $sample.Reason } }
             'Settled' {
                 $null = Invoke-ClaimsRequest 'Post' "$path/approve" $staff $null
                 $claim = Invoke-ClaimsRequest 'Post' "$path/settle" $staff $null

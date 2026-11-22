@@ -67,7 +67,9 @@ Invoke-RestMethod -Uri "$base/claims/${id}" -Headers $claimant
 Invoke-RestMethod -Uri "$base/claims/${id}/history" -Headers $claimant
 ```
 
-Pickup moves the claim from `Submitted` to `UnderReview`. A question moves it to `AwaitingInformation` and the owner's reply returns it to `UnderReview`. The cycle can repeat. To demo rejection, create another claim and call `/reject` while it is under review. Approval and settlement are separate actions. Settlement records the outcome of the claim in the API.
+Pickup moves the claim from `Submitted` to `UnderReview`. A question moves it to `AwaitingInformation` and the owner's reply returns it to `UnderReview`. The cycle can repeat. To demo rejection, create another claim and call `POST /claims/{id}/reject` with a JSON body such as `{"reason":"The assessment found that the damage occurred before the policy start date."}`. Only assigned staff can reject a claim. Approval and settlement are separate actions. Settlement records the outcome of the claim in the API.
+
+The claimant sees the decision reason and Chubb Malaysia Customer Service contact options on the rejected claim. For older rejected claims, assigned staff can add a missing reason once from the review screen or by calling `PUT /claims/{id}/rejection-reason` with the same body. The service records this action without sending a second decision notification. [Chubb Malaysia Customer Service](https://www.chubb.com/my-en/contact-us.html)
 
 The conversation is readable by the claimant who owns the claim and the assigned staff member. History records the actor, action, time, and status change, and links questions and replies to their message IDs. Staff can see unassigned claims and claims assigned to them. The list supports `status`, `assignedStaffId` (staff only), and `page` (50 results per page).
 
@@ -128,7 +130,7 @@ The Angular dev server listens on loopback and proxies API requests over HTTPS w
 
 ## Sample claims and staff reports
 
-With the Claims API running and `Demo__Password` set to the demo password, run `.\scripts\seed-demo-claims.ps1` from the repository root. The script creates eight fictional motor and property claims across both claimant accounts. It uses the regular API workflow and skips matching examples on subsequent runs.
+With the Claims API running and `Demo__Password` set to the demo password, run `.\scripts\seed-demo-claims.ps1` from the repository root. The script creates eight fictional motor and property claims across both claimant accounts. It uses the regular API workflow. On a rerun, it skips matching examples and fills in the known fictional reason if the sample rejected claim was created before reasons were supported.
 
 Sign in as `staff@example.test` and select **Reports**. The report shows the current status breakdown and workload, plus staff decisions and settlements over the selected 7-, 30-, or 90-day window. The Claims API serves the report at `GET /reports/overview`.
 

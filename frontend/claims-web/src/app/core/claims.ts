@@ -3,7 +3,7 @@ export const claimStatuses = [
 ] as const;
 export type ClaimStatus = typeof claimStatuses[number];
 export type ClaimType = 'Motor' | 'Property';
-export type ReviewAction = 'pick-up' | 'questions' | 'replies' | 'approve' | 'reject' | 'settle';
+export type ReviewAction = 'pick-up' | 'questions' | 'replies' | 'approve' | 'reject' | 'settle' | 'rejection-reason';
 export type Role = 'Claimant' | 'ClaimsStaff';
 
 export const statusLabels: Record<ClaimStatus, string> = {
@@ -24,6 +24,7 @@ export const historyLabels: Record<string, string> = {
   Rejected: 'Claim rejected',
   Settled: 'Settlement recorded',
   ExposureUpdated: 'Exposure estimate updated',
+  RejectionReasonRecorded: 'Decision reason recorded',
 };
 
 export interface Claim {
@@ -36,6 +37,7 @@ export interface Claim {
   status: ClaimStatus;
   createdAt: string;
   updatedAt: string;
+  rejectionReason: string | null;
 }
 
 export interface NewClaim {
