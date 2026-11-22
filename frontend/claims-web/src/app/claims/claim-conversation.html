@@ -1,0 +1,67 @@
+<a class="text-link back" routerLink="/conversations"><ng-icon name="lucideArrowLeft" /> All conversations</a>
+@if (claim.error()) {
+  <p class="error-box" role="alert">{{ loadError() }}</p>
+  <button class="quiet" type="button" (click)="claim.reload()">Try again</button>
+} @else if (claim.hasValue()) {
+  @let record = claim.value();
+  <header class="page-header detail-header">
+    <div>
+      <p class="reference">{{ reference(record.id) }}</p>
+      <h1>{{ record.type }} claim conversation</h1>
+    </div>
+    <a class="button quiet" [routerLink]="[session.listRoute(), record.id]">View claim <ng-icon name="lucideArrowRight" /></a>
+  </header>
+  @if (participant()) {
+    <section class="surface thread-panel" aria-labelledby="conversation-heading">
+      <div class="section-bar thread-header">
+        <h2 id="conversation-heading" class="section-title"><ng-icon name="lucideMessageCircle" /> Messages</h2>
+        <app-status-pill [status]="record.status" />
+      </div>
+      <div class="padded">
+        @if (messages.error()) {
+          <p class="error-box" role="alert">Could not load the conversation.</p>
+          <button class="quiet" type="button" (click)="messages.reload()">Try again</button>
+        } @else if (messages.hasValue()) {
+          <div role="log" aria-label="Claim messages" aria-relevant="additions">
+            <ol class="conversation">
+              @for (message of messages.value(); track message.id) {
+                @let mine = message.senderUserId === session.current()?.userId;
+                <li [class.mine]="mine">
+                  <div class="message-meta">
+                    <strong>{{ mine ? 'You' : session.isStaff() ? 'Claimant' : 'Claims staff' }}</strong>
+                    <time [attr.datetime]="message.sentAt">{{ message.sentAt | date:'d MMM, HH:mm' }}</time>
+                  </div>
+                  <p class="user-text">{{ message.body }}</p>
+                </li>
+              } @empty { <li class="no-message muted">There are no messages on this claim.</li> }
+            </ol>
+          </div>
+          @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+          @if (canSend()) {
+            <form class="form-stack message-form" (submit)="send($event)" novalidate>
+              <label class="field">{{ session.isStaff() ? 'Question for the claimant' : 'Your reply' }}
+                <textarea rows="3" [formField]="messageForm.body"
+                  [attr.aria-describedby]="messageForm.body().touched() && messageForm.body().invalid() ? 'message-error' : null"></textarea>
+              </label>
+              @if (messageForm.body().touched() && messageForm.body().invalid()) {
+                <p class="field-error" id="message-error">{{ messageForm.body().errors()[0].message }}</p>
+              }
+              <button class="primary" type="submit" [disabled]="messageForm().submitting()">
+                <ng-icon name="lucideSend" /> {{ session.isStaff() ? 'Send question' : 'Send reply' }}
+              </button>
+            </form>
+          } @else if (record.status === 'AwaitingInformation' && session.isStaff()) {
+            <p class="muted thread-note">Waiting for the claimant to reply.</p>
+          }
+        } @else {
+          <p class="muted" role="status">Loading messages…</p>
+        }
+      </div>
+    </section>
+  } @else {
+    <p class="error-box" role="alert">The assigned staff member can access this conversation.</p>
+    <a class="button quiet" routerLink="/staff">Go to staff queue</a>
+  }
+} @else {
+  <p class="state" role="status">Loading conversation…</p>
+}

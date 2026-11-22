@@ -6,9 +6,9 @@ import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
-  lucideMail, lucideMessageCircle, lucidePhone, lucideSend,
+  lucideMail, lucideMessageCircle, lucidePhone,
 } from '@ng-icons/lucide';
-import { Claim, ClaimMessage, HistoryEntry, ReviewAction, claimReference, claimUrl, historyLabels } from '../core/claims';
+import { Claim, HistoryEntry, claimReference, claimUrl, historyLabels } from '../core/claims';
 import { ClaimsClient, errorMessage } from '../core/api';
 import { Session } from '../core/session';
 import { LiveUpdates, reloadOnLiveUpdate } from '../core/live-updates';
@@ -27,7 +27,7 @@ type Decision = keyof typeof decisionLabels;
   imports: [DatePipe, RouterLink, FormField, NgIcon, StatusPill, ClaimExposure],
   viewProviders: [provideIcons({
     lucideArrowLeft, lucideCheck, lucideClipboardList, lucideHistory,
-    lucideMail, lucideMessageCircle, lucidePhone, lucideSend,
+    lucideMail, lucideMessageCircle, lucidePhone,
   })],
   templateUrl: './claim-detail.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,11 +49,6 @@ export class ClaimDetail {
   protected readonly busy = signal(false);
   protected readonly error = linkedSignal({ source: this.id, computation: () => '' });
   protected readonly feedback = linkedSignal({ source: this.id, computation: () => '' });
-  private readonly draft = linkedSignal({ source: this.id, computation: () => ({ body: '' }) });
-  protected readonly messageForm = form(this.draft, fields => {
-    required(fields.body, { message: 'Enter a message.' });
-    maxLength(fields.body, 2000);
-  });
   private readonly rejectionDraft = linkedSignal({ source: this.id, computation: () => ({ reason: '' }) });
   protected readonly rejectionForm = form(this.rejectionDraft, fields => {
     required(fields.reason, { message: 'Enter a reason for the decision.' });
@@ -67,20 +62,10 @@ export class ClaimDetail {
   protected readonly isAssigned = computed(() =>
     this.claim.hasValue() && this.claim.value().assignedStaffId === this.session.current()?.userId,
   );
-  protected readonly canReadMessages = computed(() => !this.session.isStaff() || this.isAssigned());
-  protected readonly messages = httpResource<ClaimMessage[]>(() => {
-    const id = this.id();
-    return id && this.claim.hasValue() && this.canReadMessages() ? claimUrl(id) + '/messages' : undefined;
-  });
   protected readonly history = httpResource<HistoryEntry[]>(() => {
     const id = this.id();
     return id && this.claim.hasValue() ? claimUrl(id) + '/history' : undefined;
   });
-  protected readonly canSend = computed(() => this.claim.hasValue() && (
-    this.session.isStaff()
-      ? this.isAssigned() && this.claim.value().status === 'UnderReview'
-      : this.claim.value().status === 'AwaitingInformation'
-  ));
   protected readonly noLongerAvailable = computed(() => {
     const error = this.claim.error();
     return this.session.isStaff() && error instanceof HttpErrorResponse && error.status === 404;
@@ -103,7 +88,6 @@ export class ClaimDetail {
 
   constructor() {
     reloadOnLiveUpdate(this.claim, this.version);
-    reloadOnLiveUpdate(this.messages, this.version);
     reloadOnLiveUpdate(this.history, this.version);
   }
 
@@ -112,7 +96,7 @@ export class ClaimDetail {
     this.localRevision.update(value => value + 1);
   }
 
-  protected async change(action: ReviewAction, body?: string) {
+  protected async change(action: Decision, body?: string) {
     const id = this.id();
     if (!id || this.busy()) return;
     this.busy.set(true);
@@ -123,33 +107,17 @@ export class ClaimDetail {
       if (this.id() === id) {
         this.localRevision.update(value => value + 1);
         this.pendingDecision.set(null);
-        if (action === 'questions' || action === 'replies') this.draft.set({ body: '' });
         if (action === 'reject' || action === 'rejection-reason') this.rejectionDraft.set({ reason: '' });
-        this.feedback.set(action === 'questions' || action === 'replies' ? 'Message sent.' : 'Claim updated.');
+        this.feedback.set('Claim updated.');
       }
     } catch (error) {
       if (this.id() === id) {
-        this.error.set(action === 'pick-up' && error instanceof HttpErrorResponse && error.status === 409
-          ? 'Another staff member has already picked up this claim. Return to the queue to choose another claim.'
-          : errorMessage(error, 'Could not update this claim.'));
+        this.error.set(errorMessage(error, 'Could not update this claim.'));
         this.refresh();
       }
     } finally {
       this.busy.set(false);
     }
-  }
-
-  protected send(event: Event) {
-    event.preventDefault();
-    this.error.set('');
-    void submit(this.messageForm, async () => {
-      const body = this.draft().body.trim();
-      if (!body) {
-        this.error.set('Enter a message.');
-        return;
-      }
-      await this.change(this.session.isStaff() ? 'questions' : 'replies', body);
-    });
   }
 
   protected recordRejection(event: Event, action: 'reject' | 'rejection-reason') {

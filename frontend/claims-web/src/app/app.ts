@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideBell, lucideChartNoAxesColumnIncreasing, lucideFiles, lucideLogOut, lucideShieldCheck } from '@ng-icons/lucide';
+import { lucideBell, lucideChartNoAxesColumnIncreasing, lucideFiles, lucideLogOut, lucideMessageCircle, lucideShieldCheck } from '@ng-icons/lucide';
 import { Session } from './core/session';
 import { LiveUpdates } from './core/live-updates';
 
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon],
-  viewProviders: [provideIcons({ lucideBell, lucideChartNoAxesColumnIncreasing, lucideFiles, lucideLogOut, lucideShieldCheck })],
+  viewProviders: [provideIcons({ lucideBell, lucideChartNoAxesColumnIncreasing, lucideFiles, lucideLogOut, lucideMessageCircle, lucideShieldCheck })],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

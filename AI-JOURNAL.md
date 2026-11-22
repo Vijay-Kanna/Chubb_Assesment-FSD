@@ -67,3 +67,9 @@ Codex kept REST for reading and writing authorized claim data. SignalR carries a
 Codex ran 14 passing backend tests with Kafka and tested three staff sessions and a claimant in the browser. The queue updated when a claim arrived and when it was picked up. A competing staff member could not reopen it, and a stale pickup received a `409 Conflict`. The staff question, claimant reply, and approval notification appeared without a refresh.
 
 I confirmed that the conversation should stay separate from claim history because claimants and staff need to read the full exchange in one place. The history records who sent a question or reply and when. Codex verified that the claimant and the assigned staff member could read both views and that unrelated users were denied access.
+
+## Conversations menu and queue table
+
+I asked Codex to give conversations their own menu and put claim pickup in the staff data table. Codex moved the message thread and form into **Conversations** for both roles. Claim details retain the audit history and link to the thread. A question notification also opens its conversation directly.
+
+Codex converted the queue to a native table and added **Pick up** to each available row. It verified the row action, live queue removal for another staff member, question and reply delivery in the separate thread, and the audit entry on the claim detail page. The table fit a 320-pixel viewport. The Angular build and all 14 backend tests passed.

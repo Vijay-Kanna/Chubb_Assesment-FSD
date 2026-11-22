@@ -63,6 +63,9 @@ export const guestGuard: CanActivateFn = () => {
   return !session.current() || inject(Router).parseUrl(session.listRoute());
 };
 
+export const signedInGuard: CanActivateFn = () =>
+  !!inject(Session).current() || inject(Router).parseUrl('/login');
+
 export const sessionInterceptor: HttpInterceptorFn = (request, next) => {
   const isClaimsRequest = request.url.startsWith(claimsApi + '/') && request.url !== claimsApi + '/auth/login';
   const isNotificationsRequest = request.url === notificationsApi || request.url.startsWith(notificationsApi + '?');

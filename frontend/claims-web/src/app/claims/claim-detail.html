@@ -16,6 +16,12 @@
     </div>
     <div class="header-tools">
       <app-status-pill [status]="record.status" />
+      @if (!session.isStaff() || isAssigned()) {
+        <a class="button quiet" [routerLink]="['/conversations', record.id]">
+          <ng-icon name="lucideMessageCircle" />
+          {{ !session.isStaff() && record.status === 'AwaitingInformation' ? 'Reply in conversation' : 'Open conversation' }}
+        </a>
+      }
     </div>
   </header>
   <ol class="progress" aria-label="Claim progress">
@@ -60,42 +66,6 @@
         <p class="user-text">{{ record.description }}</p>
       </section>
 
-      @if (canReadMessages()) {
-        <section class="surface padded" aria-labelledby="conversation-heading">
-          <h2 id="conversation-heading" class="section-title"><ng-icon name="lucideMessageCircle" /> Conversation</h2>
-          @if (messages.error()) {
-            <p class="muted" role="status">Could not load the conversation.</p>
-          } @else if (messages.isLoading() && !messages.hasValue()) {
-            <p class="muted" role="status">Loading conversation…</p>
-          } @else if (messages.hasValue()) {
-            <ul class="conversation">
-              @for (message of messages.value(); track message.id) {
-                <li [class.mine]="message.senderUserId === session.current()?.userId">
-                  <div class="message-meta">
-                    <strong>{{ message.senderUserId === session.current()?.userId ? 'You' : session.isStaff() ? 'Claimant' : 'Claims staff' }}</strong>
-                    <time [attr.datetime]="message.sentAt">{{ message.sentAt | date:'d MMM, HH:mm' }}</time>
-                  </div>
-                  <p class="user-text">{{ message.body }}</p>
-                </li>
-              } @empty { <li class="no-message muted">There are no messages on this claim.</li> }
-            </ul>
-          }
-          @if (canSend()) {
-            <form class="form-stack message-form" (submit)="send($event)" novalidate>
-              <label class="field">{{ session.isStaff() ? 'Question for the claimant' : 'Your reply' }}
-                <textarea rows="3" [formField]="messageForm.body"
-                  [attr.aria-describedby]="messageForm.body().touched() && messageForm.body().invalid() ? 'message-error' : null"></textarea>
-              </label>
-              @if (messageForm.body().touched() && messageForm.body().invalid()) {
-                <p class="field-error" id="message-error">{{ messageForm.body().errors()[0].message }}</p>
-              }
-              <button class="primary" type="submit" [disabled]="busy() || messageForm().submitting()">
-                <ng-icon name="lucideSend" /> {{ session.isStaff() ? 'Send question' : 'Send reply' }}
-              </button>
-            </form>
-          }
-        </section>
-      }
     </div>
 
     <div class="detail-rail">
@@ -103,8 +73,8 @@
         <section class="surface padded review-panel" aria-labelledby="review-heading">
           <h2 id="review-heading">Review actions</h2>
           @if (record.status === 'Submitted') {
-            <p class="muted">Assign this claim to yourself to start a review.</p>
-            <button class="primary" type="button" (click)="change('pick-up')" [disabled]="busy()">Pick up claim</button>
+            <p class="muted">Pick up this claim from the staff queue to start a review.</p>
+            <a class="button quiet" routerLink="/staff">Go to staff queue</a>
           } @else if (pendingDecision(); as decision) {
             @if (decision === 'reject' || decision === 'rejection-reason') {
               <form class="form-stack" (submit)="recordRejection($event, decision)" novalidate>

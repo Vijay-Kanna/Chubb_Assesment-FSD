@@ -14,8 +14,9 @@
         <li>
           <span class="record-icon"><ng-icon name="lucideBell" /></span>
           <div><strong>{{ notice.message }}</strong><p class="muted">{{ reference(notice.claimId) }} · {{ notice.createdAt | date:'d MMM y, HH:mm' }}</p></div>
-          <a class="text-link" [routerLink]="['/claims', notice.claimId]" [attr.aria-label]="'Open ' + reference(notice.claimId)">
-            Open claim <ng-icon name="lucideArrowRight" />
+          <a class="text-link" [routerLink]="[notice.type === 'QuestionAsked' ? '/conversations' : '/claims', notice.claimId]"
+            [attr.aria-label]="'Open ' + reference(notice.claimId) + (notice.type === 'QuestionAsked' ? ' conversation' : '')">
+            {{ notice.type === 'QuestionAsked' ? 'Open conversation' : 'Open claim' }} <ng-icon name="lucideArrowRight" />
           </a>
         </li>
       } @empty {

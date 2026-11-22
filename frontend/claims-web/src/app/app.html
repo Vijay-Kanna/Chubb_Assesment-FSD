@@ -10,6 +10,9 @@
         <a [routerLink]="session.listRoute()" routerLinkActive="active" ariaCurrentWhenActive="page">
           <ng-icon name="lucideFiles" /> {{ session.isStaff() ? 'Staff queue' : 'My claims' }}
         </a>
+        <a routerLink="/conversations" routerLinkActive="active" ariaCurrentWhenActive="page">
+          <ng-icon name="lucideMessageCircle" /> Conversations
+        </a>
         @if (session.isStaff()) {
           <a routerLink="/reports" routerLinkActive="active" ariaCurrentWhenActive="page"><ng-icon name="lucideChartNoAxesColumnIncreasing" /> Reports</a>
         } @else {

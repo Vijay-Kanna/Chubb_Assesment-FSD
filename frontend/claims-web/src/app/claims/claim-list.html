@@ -1,9 +1,13 @@
 <header class="page-header">
   <div>
-    <h1>{{ session.isStaff() ? 'Staff queue' : 'My claims' }}</h1>
-    <p class="muted">{{ session.isStaff() ? 'Review incoming claims and manage your assignments.' : 'Track your claims and respond when more information is needed.' }}</p>
+    <h1>{{ conversationList() ? 'Conversations' : isQueue() ? 'Staff queue' : 'My claims' }}</h1>
+    <p class="muted">
+      @if (conversationList()) { Choose a claim to read its conversation. }
+      @else if (isQueue()) { Pick up an incoming claim or open an existing assignment. }
+      @else { Track your claims and respond when more information is needed. }
+    </p>
   </div>
-  @if (!session.isStaff()) {
+  @if (!session.isStaff() && !conversationList()) {
     <a class="button primary" routerLink="/claims/new"><ng-icon name="lucidePlus" /> New claim</a>
   }
 </header>
@@ -13,11 +17,19 @@
     <ng-icon name="lucideArrowDownRight" /> One or more claims on this page need a reply.
   </aside>
 }
+@if (pickupError()) {
+  <p class="error-box" role="alert">{{ pickupError() }}</p>
+}
+@if (assignedClaim(); as assigned) {
+  <div class="success-line pickup-success" role="status">
+    <span>{{ reference(assigned.id) }} was assigned to you.</span>
+    <a class="text-link" [routerLink]="['/staff', assigned.id]">Open claim <ng-icon name="lucideArrowRight" /></a>
+  </div>
+}
+
 <section class="surface" aria-labelledby="claims-heading">
   <div class="section-bar">
-    <div>
-      <h2 id="claims-heading">{{ session.isStaff() ? 'Available and assigned' : 'Claim activity' }}</h2>
-    </div>
+    <h2 id="claims-heading">{{ conversationList() ? 'Claim threads' : isQueue() ? 'Available and assigned' : 'Claim activity' }}</h2>
     <div class="section-tools">
       <label class="filter-label">Status
         <select #statusFilter [value]="filter()" (change)="changeFilter(statusFilter.value)">
@@ -34,34 +46,54 @@
     <div class="section-bar"><button class="quiet" type="button" (click)="claims.reload()">Try again</button></div>
   } @else if (claims.hasValue()) {
     @if (claims.value().length) {
-      <div class="claim-table" role="table" aria-label="Claims">
-        <div class="claim-row claim-head" role="row">
-          <span role="columnheader">Claim</span><span role="columnheader">Incident date</span>
-          <span role="columnheader">Status</span><span role="columnheader">Updated</span>
-          <span role="columnheader">Details</span>
-        </div>
-        @for (claim of claims.value(); track claim.id) {
-          <div class="claim-row" role="row">
-            <div class="claim-cell" role="cell">
-              <span class="record-icon"><ng-icon name="lucideClipboardList" /></span>
-              <div><strong>{{ claim.type }} claim</strong><span class="reference">{{ reference(claim.id) }}</span></div>
-            </div>
-            <span class="incident-cell" role="cell">{{ claim.incidentDate | date:'d MMM y' }}</span>
-            <span class="status-cell" role="cell"><app-status-pill [status]="claim.status" /></span>
-            <span class="updated-cell" role="cell">{{ claim.updatedAt | date:'d MMM y' }}</span>
-            <span class="view-cell" role="cell">
-              <a class="text-link" [routerLink]="[session.listRoute(), claim.id]" [attr.aria-label]="'Open ' + reference(claim.id)">
-                Open <ng-icon name="lucideArrowRight" />
-              </a>
-            </span>
-          </div>
-        }
+      <div class="claim-table-scroll">
+        <table class="claim-table" aria-labelledby="claims-heading">
+          <thead>
+            <tr>
+              <th scope="col">Claim</th>
+              <th scope="col" class="incident-cell">Incident date</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="updated-cell">Updated</th>
+              <th scope="col" class="action-cell">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (claim of claims.value(); track claim.id) {
+              <tr>
+                <th scope="row">
+                  <div class="claim-cell">
+                    <span class="record-icon"><ng-icon name="lucideClipboardList" /></span>
+                    <div><strong>{{ claim.type }} claim</strong><span class="reference">{{ reference(claim.id) }}</span></div>
+                  </div>
+                </th>
+                <td class="incident-cell">{{ claim.incidentDate | date:'d MMM y' }}</td>
+                <td><app-status-pill [status]="claim.status" /></td>
+                <td class="updated-cell">{{ claim.updatedAt | date:'d MMM y' }}</td>
+                <td class="action-cell">
+                  <div class="table-actions">
+                    @if (isQueue() && claim.status === 'Submitted' && !claim.assignedStaffId) {
+                      <button class="primary table-pickup" type="button" (click)="pickUp(claim)"
+                        [attr.aria-label]="'Pick up ' + reference(claim.id)" [disabled]="taking().has(claim.id)">
+                        {{ taking().has(claim.id) ? 'Picking up…' : 'Pick up' }}
+                      </button>
+                    }
+                    <a class="text-link" [routerLink]="[rowRoute(), claim.id]"
+                      [attr.aria-label]="'Open ' + reference(claim.id) + (conversationList() ? ' conversation' : '')">
+                      Open <ng-icon name="lucideArrowRight" />
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
     } @else {
       <div class="empty">
         <span class="record-icon"><ng-icon name="lucideClipboardList" /></span>
-        <h3>No claims {{ filter() ? 'match this status' : 'on this page' }}</h3>
+        <h3>{{ filter() ? 'No claims match this status' : conversationList() ? 'No claim threads on this page' : 'No claims on this page' }}</h3>
         @if (filter()) { <button type="button" class="quiet" (click)="changeFilter('')">Clear filter</button> }
+        @else if (conversationList() && session.isStaff()) { <a class="text-link" routerLink="/staff">Go to staff queue <ng-icon name="lucideArrowRight" /></a> }
         @else if (!session.isStaff() && page() === 1) { <a class="text-link" routerLink="/claims/new">Submit a claim <ng-icon name="lucideArrowRight" /></a> }
       </div>
     }

@@ -124,9 +124,9 @@ $trusted = Get-ChildItem -LiteralPath 'Cert:\CurrentUser\Root' | Where-Object {
 }) -join [Environment]::NewLine))
 ```
 
-Open [Claims Workspace](http://127.0.0.1:4200/). Sign in as the demo claimant and submit a claim. In a second tab, sign in as staff, pick up the claim, and send a question. The open claimant screen updates so the claimant can reply. The staff screen receives the reply and can record a decision. If the claimant has their inbox open, the new notification appears there when it is delivered.
+Open [Claims Workspace](http://127.0.0.1:4200/). Sign in as the demo claimant and submit a claim. In a second tab, sign in as staff and select **Pick up** in the claim's row in **Staff queue**. Open the claim's thread from **Conversations** and send a question. The claimant can open the same thread from their **Conversations** menu or question notification. Both sides receive new messages live. Select **View claim** to return to the review and audit history.
 
-To demo pickup contention, open the same unassigned claim as two different staff accounts. The first successful pickup wins. The other staff member sees an unavailable message and the claim drops out of their queue. If a stale client still submits pickup, the API returns a `409 Conflict` with an explanation.
+To demo pickup contention, display the same unassigned row in two staff queues. The first successful **Pick up** wins, and the claim drops out of the other staff member's queue. If a stale client still submits pickup, the API returns a `409 Conflict` with an explanation.
 
 The API commits claim changes before publishing SignalR updates. SignalR tells the browser when to fetch the latest data through the authenticated REST endpoints. The notification service sends its SignalR update after committing the notification. Reconnecting clients reload the current state. Claims updates use `/api/claims/hubs/claims` through the Angular proxy, and claimant notifications use `/api/live/notifications`.
 
