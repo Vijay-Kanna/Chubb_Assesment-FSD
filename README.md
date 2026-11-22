@@ -4,10 +4,11 @@ The Angular workspace serves claimants and claims staff. The .NET Claims API own
 
 ## Run locally
 
-Use the .NET 10 SDK. Run these commands from the repository root in PowerShell:
+Use the .NET 10 SDK. Run these commands from the repository root in PowerShell 7:
 
 ```powershell
-dotnet dev-certs https --trust
+dotnet dev-certs https --check --trust
+if ($LASTEXITCODE -ne 0) { dotnet dev-certs https --trust }
 $env:Demo__Password = [guid]::NewGuid().ToString('N')
 dotnet run --project backend/Claims.Api
 ```
